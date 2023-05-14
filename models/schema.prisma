@@ -1,0 +1,170 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id                  Int                   @id @default(autoincrement())
+  email               String                @unique(map: "Users_email_key") @db.VarChar(255)
+  first_name          String                @db.VarChar(255)
+  last_name           String                @db.VarChar(255)
+  address             Json?
+  phone               String?
+  password            String                @db.VarChar(255)
+  role                Users_Role?           @default(USER)
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  token               String?
+  products_order      Products_Order[]      // Un utilisateur peut passer plusieurs commandes de produits
+  subscriptions_order Subscriptions_Order[] // Un utilisateur peut passer plusieurs commandes d'abonnements
+  posts               Post[]                // Un utilisateur peut publier plusieurs articles
+  subscriptions       Subscriptions[]       // Un utilisateur peut avoir plusieurs abonnements
+  plan                Plan[]                // Un utilisateur peut avoir plusieurs plans
+  favorites           Favorites[]           // Un utilisateur peut avoir plusieurs produits en favoris
+}
+
+model Products {
+  id                Int            @id @default(autoincrement())
+  title             String         @db.VarChar(255)
+  images            Json
+  price             Float          @db.Double
+  slug              String         @unique(map: "Products_slug_key") @db.VarChar(255)
+  composition       String         @db.Text()
+  short_description String         @db.Text()
+  description       String         @db.Text()
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  categories        Categories[]   // Plusieurs produits peuvent appartenir à plusieurs catégories
+  favorites         Favorites[]    // Plusieurs produits peuvent être ajoutés aux favoris de plusieurs utilisateurs
+  plan_id           Int          // Un produit peut appartenir à un seul plan (relation optionnelle)
+  plan              Plan           @relation(fields: [plan_id], references: [id])
+}
+
+model Ingredients {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(255)
+  description String   @db.Text
+  images      Json
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model Plan {
+  id            Int            @id @default(autoincrement())
+  title         String         @db.VarChar(255)
+  image         Json
+  stripe_id     Float          @db.Double
+  slug          String         @unique(map: "Subscriptions_slug_key") @db.VarChar(255)
+  description   String         @db.Text
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  products      Products[]     // Un plan peut avoir plusieurs produits
+  subscriptions Subscriptions[] // Un plan peut avoir plusieurs abonnements
+  users         Users[]        // Un plan peut avoir plusieurs utilisateurs
+}
+
+model Subscriptions {
+  id          Int       @id @default(autoincrement())
+  user        Users     @relation(fields: [user_id], references: [id])
+  user_id     Int
+  plan        Plan      @relation(fields: [plan_id], references: [id])
+  plan_id     Int
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  subscription_order    Subscriptions_Order[]
+
+  @@index([user_id, plan_id])
+}
+
+model Post {
+  id           Int       @id @default(autoincrement())
+  body         String    @db.Text
+  image        String
+  title        String    @db.VarChar(255)
+  slug         String    @db.VarChar(255)
+  published    Boolean
+  published_at DateTime
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  user         Users     @relation(fields: [user_id], references: [id])
+  user_id         Int
+
+  @@index([user_id])
+}
+
+model Products_Order {
+  id         Int       @id @default(autoincrement())
+  user       Users     @relation(fields: [user_id], references: [id])
+  user_id    Int
+  products   Json
+  ingredients Json?
+  total      Float     @db.Double
+  address    String    @db.Text
+  pay        String?   @db.VarChar(255)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  @@index([user_id])
+}
+
+model Subscriptions_Order {
+  id              Int          @id @default(autoincrement())
+  user            Users        @relation(fields: [user_id], references: [id])
+  user_id         Int
+  subscription    Subscriptions  @relation(fields: [subscription_id], references: [id])
+  subscription_id Int
+  ingredients     Json?
+  pay             String        @db.VarChar(255)
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  @@index([user_id])
+}
+
+model Categories {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  created_at DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  products  Products[]   // Une catégorie peut avoir plusieurs produits
+  promo_codes Promo_Code[] // Une catégorie peut avoir plusieurs codes promotionnels
+}
+
+model Favorites {
+  id          Int         @id @default(autoincrement())
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  user        Users       @relation(fields: [user_id], references: [id])
+  user_id     Int
+  products    Products  @relation(fields: [product_id], references: [id])
+  product_id  Int
+
+  @@index([user_id])
+}
+
+model Promo_Code {
+  id          Int        @id @default(autoincrement())
+  code        String     @unique
+  reduction   Float
+  expiration  DateTime
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  categories  Categories[]  // Un code promo peut appartenir à plusieurs catégories
+}
+
+model Error {
+  id         Int       @id @default(autoincrement())
+  message    Json
+  created_at DateTime  @default(now())
+}
+
+enum Users_Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
