@@ -1,32 +1,32 @@
 import { PrismaClient } from '@prisma/client'
+import moment from 'moment';
 
 const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, image, amount, slug, description, published, interval } = req.body
+    const { title, image, slug, published, limite } = req.body
 
-    if(!title || !image || !amount || !slug || !description || !interval){
+    if(!title || !image || !limite || !slug ){
 
         let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
         let imageError = (image && image == "") ??  "Veuillez choisir au moins une image."
-        let amountError = (amount && amount == "") ??  "Veuillez saisir un prix."
-        let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
-        let descriptionError = (description && description.trim() == "") ??  "Veuillez saisir une description."
-        let intervalError = (interval && interval.trim() == "") ??  "Veuillez saisir une intervale de facturation."
+        let limiteError = (limite && limite == "") ??  "Veuillez choisir une date limite."
+        let slugError = (slug && slug.trim() == "") ??  "Veuillez choisir un slug."
+      
 
         res.status(422).json({
-            error: { titleError, imageError, amountError, slugError, descriptionError, intervalError }
+            error: { titleError, imageError, slugError, limiteError }
         })
     }
 
+    console.log("request");
+
     res.title = title
     res.image = image
-    res.amount = amount
     res.slug = slug
-    res.description = description
     res.published = published
-    res.interval = interval
+    res.limite = limite
 
     next()
 }
@@ -34,22 +34,22 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allSubscriptions = await prisma.plans.findMany()
+        const allCollection = await prisma.collections.findMany()
 
-        if(!allSubscriptions){
-            throw new Error("Error Plans")
+        if(!allCollection){
+            throw new Error("Error Collections")
         }
 
         res.json({
-            allSubscriptions
+            allCollection
         })
 
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Plans"){
-            message = "Il n'y a aucun abonnement."
+        if(error == "Error Collections"){
+            message = "Il n'y a aucune collection."
         }
 
         res.status(code).json({
@@ -59,28 +59,30 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-
-    const stripe_id = res.stripe_id;
-
-    const { title, image, amount, description, published, interval } = res
+    const { title, image, published  } = res
     let slug = res.slug
+    let limite = moment(res.limite).format()
 
     slug = await generateSlug(slug)
 
+    console.log({title, image, slug, published, limite});
+
     try{
 
-        const createSubscriptions = await prisma.plans.create({
-            data: { 
-                title, image, amount, slug, description, published, stripe_id, interval
+        const createCollection = await prisma.collections.create({
+            data: {
+                title, image, slug, published, limite
             },
-        })
+        });
 
-        if(!createSubscriptions){
+        console.log("create");
+
+        if(!createCollection){
             throw new Error("Error Create")
         }
 
         res.status(200).json({
-            message: "L'abonnement a été créé avec succès."
+            message: "La collection a été créé avec succès."
         })
 
     } catch(error){
@@ -88,7 +90,7 @@ export const createData = async (req, res) => {
         let code = 500
 
         if(error == "Error Create"){
-            message = "Une erreur c'est produite lors de la création de l'abonnement."
+            message = "Une erreur c'est produite lors de la création de la collection."
         }
 
         res.status(code).json({
@@ -98,32 +100,31 @@ export const createData = async (req, res) => {
 }
 
 export const showData = async (req, res) => {
-    const id = req.params.id
+    const slug = req.params.slug
 
     try{
-        const showSubscriptions = await prisma.plans.findUnique({
+        const showCollection = await prisma.collections.findFirst({
             where: {
-              id: parseInt(id)
+              slug: slug
             },
           })
 
-        if(!showSubscriptions){
-            throw new Error("Error Plans")
+        if(!showCollection){
+            throw new Error("Error Collections")
         }
 
         res.json({
-            showSubscriptions
+            showCollection
         })
 
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Plans"){
-            message = "Il n'y a aucun abonnement."
+        if(error == "Error Collections"){
+            message = "Il n'y a aucune collection."
         }
 
-        console.log(error);
         res.status(code).json({
             message
         })
@@ -131,29 +132,29 @@ export const showData = async (req, res) => {
 }
 
 export const updateData = async(req, res) => {
-    const { title, image, amount, description, published, interval } = res
+    const { title, image, published, limite } = res
     let slug = res.slug
     const id = req.params.id
 
     slug = await generateSlug(slug)
 
     try{
-        const updateSubscriptions = await prisma.plans.update({ 
+        const updateCollection = await prisma.collections.update({ 
             where: {
                 id: parseInt(id)
             },
             data: { 
-                title, image, amount, slug, description, published, interval
+                title, image, slug, published, limite
             }
         })
 
-        if(!updateSubscriptions){
+        if(!updateCollection){
             throw new Error("Error Update")
         }
 
         res.json({
-            message: "L'abonnement a été modifié avec succès.",
-            updateSubscriptions
+            message: "La collection a été modifié avec succès.",
+            updateCollection
         })
 
     } catch(error){
@@ -161,7 +162,7 @@ export const updateData = async(req, res) => {
         let code = 500
 
         if(error == "Error Update"){
-            message = "Une erreur c'est produite lors de la modification de l'abonnement."
+            message = "Une erreur c'est produite lors de la modification de la collection."
         }
 
         res.status(code).json({
@@ -174,19 +175,19 @@ export const deleteData = async(req, res) => {
     const id = req.params.id
 
     try{
-        const deleteSubscriptions = await prisma.plans.delete({ 
+        const deleteCollection = await prisma.collections.delete({ 
             where: {
                 id: parseInt(id)
             }
         })
 
-        if(!deleteSubscriptions){
+        if(!deleteCollection){
             throw new Error("Error Delete")
         }
 
         res.json({
-            message: "L'abonnement a été supprimé avec succès.",
-            deleteSubscriptions
+            message: "La collection a été supprimé avec succès.",
+            deleteCollection
         })
 
     } catch(error){
@@ -194,7 +195,7 @@ export const deleteData = async(req, res) => {
         let code = 500
 
         if(error == "Error Delete"){
-            message = "Une erreur c'est produite lors de la suppression de l'abonnement."
+            message = "Une erreur c'est produite lors de la suppression de la collection."
         }
 
         res.status(code).json({
@@ -204,7 +205,7 @@ export const deleteData = async(req, res) => {
 }
 
 const generateSlug = async (slug) => {
-    let slugExist = await prisma.plans.findFirst({
+    let slugExist = await prisma.collections.findFirst({
         where: {
             slug: slug,
         },
@@ -217,7 +218,7 @@ const generateSlug = async (slug) => {
         slugGenerate = slug + "-" + slugNb 
         slugNb++
 
-        slugExist = await prisma.plans.findFirst({
+        slugExist = await prisma.collections.findFirst({
             where: {
                 slug: slugGenerate,
             },

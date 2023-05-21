@@ -20,11 +20,11 @@ model Users {
   created_at          DateTime              @default(now())
   updated_at          DateTime              @updatedAt
   token               String?
+  stripe_id           Int
   products_order      Products_Order[]      // Un utilisateur peut passer plusieurs commandes de produits
   subscriptions_order Subscriptions_Order[] // Un utilisateur peut passer plusieurs commandes d'abonnements
   posts               Post[]                // Un utilisateur peut publier plusieurs articles
   subscriptions       Subscriptions[]       // Un utilisateur peut avoir plusieurs abonnements
-  plan                Plan[]                // Un utilisateur peut avoir plusieurs plans
   favorites           Favorites[]           // Un utilisateur peut avoir plusieurs produits en favoris
 }
 
@@ -37,12 +37,16 @@ model Products {
   composition       String         @db.Text()
   short_description String         @db.Text()
   description       String         @db.Text()
+  published         Boolean
+  stock             Int
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   categories        Categories[]   // Plusieurs produits peuvent appartenir à plusieurs catégories
   favorites         Favorites[]    // Plusieurs produits peuvent être ajoutés aux favoris de plusieurs utilisateurs
   plan_id           Int          // Un produit peut appartenir à un seul plan (relation optionnelle)
-  plan              Plan           @relation(fields: [plan_id], references: [id])
+  plan              Plans           @relation(fields: [plan_id], references: [id])
+  collection_id     Int          // Un produit peut appartenir à un seul collection (relation optionnelle)
+  collection        Collections     @relation(fields: [collection_id], references: [id])
 }
 
 model Ingredients {
@@ -50,30 +54,34 @@ model Ingredients {
   title       String   @db.VarChar(255)
   description String   @db.Text
   images      Json
+  published   Boolean
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 }
 
-model Plan {
+model Plans {
   id            Int            @id @default(autoincrement())
   title         String         @db.VarChar(255)
   image         Json
-  stripe_id     Float          @db.Double
+  amount        Int
+  stripe_id     String
+  interval      String
   slug          String         @unique(map: "Subscriptions_slug_key") @db.VarChar(255)
   description   String         @db.Text
   created_at    DateTime       @default(now())
   updated_at    DateTime       @updatedAt
+  published     Boolean
   products      Products[]     // Un plan peut avoir plusieurs produits
   subscriptions Subscriptions[] // Un plan peut avoir plusieurs abonnements
-  users         Users[]        // Un plan peut avoir plusieurs utilisateurs
 }
 
 model Subscriptions {
   id          Int       @id @default(autoincrement())
   user        Users     @relation(fields: [user_id], references: [id])
   user_id     Int
-  plan        Plan      @relation(fields: [plan_id], references: [id])
+  plan        Plans      @relation(fields: [plan_id], references: [id])
   plan_id     Int
+  subscription  String
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   subscription_order    Subscriptions_Order[]
@@ -95,6 +103,18 @@ model Post {
   user_id         Int
 
   @@index([user_id])
+}
+
+model Collections {
+  id           Int       @id @default(autoincrement())
+  image        String
+  title        String    @db.VarChar(255)
+  slug         String    @db.VarChar(255)
+  published    Boolean
+  limite       DateTime
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  products     Products[]
 }
 
 model Products_Order {

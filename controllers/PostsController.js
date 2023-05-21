@@ -97,7 +97,7 @@ export const showData = async (req, res) => {
     const slug = req.params.slug
 
     try{
-        const showProduct = await prisma.posts.findUnique({
+        const showProduct = await prisma.posts.findFirst({
             where: {
               slug: slug
             },
@@ -266,7 +266,7 @@ const generateSlug = async (slug) => {
         slugGenerate = slug + "-" + slugNb 
         slugNb++
 
-        slugExist = await prisma.posts.findUnique({
+        slugExist = await prisma.posts.findFirst({
             where: {
                 slug: slugGenerate,
             },

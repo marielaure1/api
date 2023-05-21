@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { email, first_name, last_name, password, verifPassword } = req.body
+    const { email, first_name, last_name, password, verifPassword, address, phone, role } = req.body
     let emailError, first_nameError, last_nameError, passwordError, verifPasswordError;
     let errors = false;
 
@@ -48,6 +48,9 @@ export const request = async (req, res, next) => {
     res.first_name = first_name
     res.last_name = last_name
     res.password = bcrypt.hashSync(password, 12)
+    res.address = address
+    res.phone = phone
+    res.role = role
 
     next()
 }
@@ -80,15 +83,13 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { email, first_name, last_name, password } = res
-
-    console.log({ email, first_name, last_name, password })
+    const { email, first_name, last_name, password, address, phone, role } = res
 
     try{
 
         const createUser = await prisma.users.create({
             data: { 
-                email, first_name, last_name, password
+                email, first_name, last_name, password, address, phone, role
             },
         })
 
@@ -147,7 +148,7 @@ export const showData = async (req, res) => {
 }
 
 export const updateData = async(req, res) => {
-    const { email, first_name, last_name, password } = res
+    const { email, first_name, last_name, password, address, phone, role } = res
     const id = req.params.id
 
     try{
@@ -156,7 +157,7 @@ export const updateData = async(req, res) => {
                 id: parseInt(id)
             },
             data: { 
-                email, first_name, last_name, password
+                email, first_name, last_name, password, address, phone, role
             }
         })
 

@@ -24,7 +24,7 @@ export const authentification = async(req, res, next) => {
 
     try{
        
-        const user = await prisma.users.findUnique({
+        const user = await prisma.users.findFirst({
             where: { 
                 email: token.email
             }

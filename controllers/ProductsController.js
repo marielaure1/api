@@ -4,7 +4,7 @@ const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, images, price, slug, short_description, description, plan, categories } = req.body
+    const { title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id } = req.body
 
     if(!title || !images || !price || !slug ){
 
@@ -14,11 +14,9 @@ export const request = async (req, res, next) => {
         let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
         let shortDescriptionError = (short_description && short_description.trim() == "") ??  "Veuillez saisir une description courte."
         let descriptionError = (description && description.trim() == "") ??  "Veuillez saisir une description."
-        let categoriesError = (categories && categories == "") ??  "Veuillez choisir au moins une catégorie."
-        let planError = (plan && plan == "") ??  "Veuillez choisir un abonnement."
 
         res.status(422).json({
-            error: { titleError, imagesError, priceError, slugError, shortDescriptionError, descriptionError, categoriesError, planError }
+            error: { titleError, imagesError, priceError, slugError, shortDescriptionError, descriptionError }
         })
     }
 
@@ -28,8 +26,11 @@ export const request = async (req, res, next) => {
     res.slug = slug
     res.short_description = short_description
     res.description = description
-    res.plan = plan
-    res.categories = categories 
+    res.composition = composition 
+    res.published = published 
+    res.stock = stock 
+    res.plan_id = plan_id 
+    res.collection_id = collection_id 
 
     next()
 }
@@ -62,18 +63,16 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { title, images, price, short_description, description, plan, categories  } = res
+    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id  } = res
     let slug = res.slug
 
     slug = await generateSlug(slug)
-
-    console.log({ title, images, price, slug, short_description, description, plan, categories });
 
     try{
 
         const createProduct = await prisma.products.create({
             data: {
-                title, images, price, slug, short_description, description, plan, categories
+                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id
             },
         });
 
@@ -103,7 +102,7 @@ export const showData = async (req, res) => {
     const slug = req.params.slug
 
     try{
-        const showProduct = await prisma.products.findUnique({
+        const showProduct = await prisma.products.findFirst({
             where: {
               slug: slug
             },
@@ -259,7 +258,7 @@ export const searchData = async(req, res) => {
 }
 
 const generateSlug = async (slug) => {
-    let slugExist = await prisma.products.findUnique({
+    let slugExist = await prisma.products.findFirst({
         where: {
             slug: slug,
         },
@@ -272,7 +271,7 @@ const generateSlug = async (slug) => {
         slugGenerate = slug + "-" + slugNb 
         slugNb++
 
-        slugExist = await prisma.products.findUnique({
+        slugExist = await prisma.products.findFirst({
             where: {
                 slug: slugGenerate,
             },

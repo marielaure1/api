@@ -5,7 +5,9 @@ import productsRoutes from "./routes/ProductsRoutes.js"
 import ingredientsRoutes from "./routes/IngredientsRoutes.js"
 import usersRoutes from "./routes/UsersRoutes.js"
 import authRoutes from "./routes/AuthRoutes.js"
-// import subscriptionsRoutes from "./routes/PlansRoutes.js"
+import plansRoutes from "./routes/PlansRoutes.js"
+import subscriptionsRoutes from "./routes/SubscriptionsRoutes.js"
+import collectionsRoutes from "./routes/CollectionsRoutes.js"
 // import postsRoutes from "./routes/PostsRoutes.js"
 // import usersRoutes from "./routes/UsersRoutes.js"
 // import authRoutes from "./routes/AuthRoutes.js"
@@ -22,10 +24,13 @@ app.use(express.json())
 app.use(contentType)
 app.use("/api/products", productsRoutes)
 app.use("/api/ingredients", ingredientsRoutes)
-// app.use("api/subscriptions", subscriptionsRoutes)
+app.use("/api/plans", plansRoutes)
+app.use("/api/subscriptions", subscriptionsRoutes)
+app.use("/api/collections", collectionsRoutes)
 // app.use("api/posts", postsRoutes)
 app.use("/api/users", authentification, usersRoutes)
 app.use("/api/auth", authRoutes)
+// app.post('/api/stripe/payment')
 
 // app.use("api/users", authentification, usersRoutes)
 

@@ -4,29 +4,20 @@ const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, images, price, slug, short_description, description, caracteristiques, plan, categories  } = req.body
+    const { user_id, plan_id  } = req.body
 
-    if(!title || !images || !price || !slug ){
+    if(!user_id || !plan_id ){
 
-        let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
-        let imagesError = (images && images == "") ??  "Veuillez choisir au moins une image."
-        let priceError = (price && price == "") ??  "Veuillez saisir un prix."
-        let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
+        let user_idError = (user_id && user_id == "") ??  "Veuillez choisir un utilisateur."
+        let plan_idError = (plan_id && plan_id == "") ??  "Veuillez choisir un abonnement."
 
         res.status(422).json({
-            error: { titleError, imagesError, priceError, slugError }
+            error: { user_idError, plan_idError }
         })
     }
 
-    res.title = title
-    res.images = images
-    res.price = price
-    res.slug = slug
-    res.short_description = short_description
-    res.description = description
-    res.caracteristiques = caracteristiques
-    res.plan = plan
-    res.categories = categories 
+    res.user_id = user_id
+    res.plan_id = plan_id
 
     next()
 }
@@ -34,22 +25,22 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allProduct = await prisma.products.findMany()
+        const allPlan = await prisma.plans.findMany()
 
-        if(!allProduct){
-            throw new Error("Error Products")
+        if(!allPlan){
+            throw new Error("Error Plans")
         }
 
         res.json({
-            allProduct
+            allPlan
         })
 
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Products"){
-            message = "Il n'y a aucun produit."
+        if(error == "Error Plans"){
+            message = "Il n'y a aucun abonnement."
         }
 
         res.status(code).json({
@@ -59,30 +50,25 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { title, images, price, short_description, description, caracteristiques, plan, categories  } = res
-    let slug = res.slug
+    const { user_id, plan_id  } = res
 
-    slug = await generateSlug(slug)
-
-    console.log({ title, images, price, slug, short_description, description, caracteristiques, plan, categories });
-
+    console.log({ user_id, plan_id  });
     try{
 
-        const createProduct = await prisma.products.create({
+        const createSubscription = await prisma.subscriptions.create({
             data: {
-              title: title,
-              images: images,
-              price: price,
-              slug: slug,
+              user_id, plan_id
             },
         });
 
-        if(!createProduct){
+        console.log("ted");
+
+        if(!createSubscription){
             throw new Error("Error Create")
         }
 
         res.status(200).json({
-            message: "Le produit a été créé avec succès."
+            message: "L'inscription à l'abonnement a été créé avec succès."
         })
 
     } catch(error){
@@ -90,7 +76,7 @@ export const createData = async (req, res) => {
         let code = 500
 
         if(error == "Error Create"){
-            message = "Une erreur c'est produite lors de la création du produit."
+            message = "Une erreur c'est produite lors de l'inscription à l'abonnement'."
         }
 
         res.status(code).json({
@@ -103,25 +89,25 @@ export const showData = async (req, res) => {
     const id = req.params.id
 
     try{
-        const showProduct = await prisma.products.findUnique({
+        const showSubscription = await prisma.subscriptions.findUnique({
             where: {
               id: parseInt(id)
             },
           })
 
-        if(!showProduct){
-            throw new Error("Error Products")
+        if(!showSubscription){
+            throw new Error("Error Subscriptions")
         }
 
         res.json({
-            showProduct
+            showSubscription
         })
 
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Products"){
+        if(error == "Error Subscriptions"){
             message = "Il n'y a aucun produit."
         }
 
@@ -132,32 +118,25 @@ export const showData = async (req, res) => {
 }
 
 export const updateData = async(req, res) => {
-    const { title, images, price } = res
-    let slug = res.slug
-    const id = req.params.id
-
-    slug = await generateSlug(slug)
+    const { id, user_id, plan_id } = res
 
     try{
-        const updateProduct = await prisma.products.update({ 
+        const updateSubscription = await prisma.subscriptions.update({ 
             where: {
-                id: parseInt(id)
+                id: id
             },
             data: { 
-                title: title, 
-                images: images, 
-                price: price, 
-                slug: slug 
+                user_id, plan_id
             }
         })
 
-        if(!updateProduct){
+        if(!updateSubscription){
             throw new Error("Error Update")
         }
 
         res.json({
             message: "Le produit a été modifié avec succès.",
-            updateProduct
+            updateSubscription
         })
 
     } catch(error){
@@ -175,22 +154,22 @@ export const updateData = async(req, res) => {
 }
 
 export const deleteData = async(req, res) => {
-    const id = req.params.id
+    const {id} = res
 
     try{
-        const deleteProduct = await prisma.products.delete({ 
+        const deleteSubscription = await prisma.subscriptions.delete({ 
             where: {
-                id: parseInt(id)
+                id: id
             }
         })
 
-        if(!deleteProduct){
+        if(!deleteSubscription){
             throw new Error("Error Delete")
         }
 
         res.json({
             message: "Le produit a été supprimé avec succès.",
-            deleteProduct
+            deleteSubscription
         })
 
     } catch(error){
@@ -205,85 +184,4 @@ export const deleteData = async(req, res) => {
             message
         })
     }
-}
-
-export const searchData = async(req, res) => {
-    const q = req.query.q
-    
-    console.log(q);
-
-    try{
-        const searchProduct = await prisma.products.findMany({
-            where: {
-              OR: [
-                {
-                  title: {
-                    search: q
-                  },
-                },
-                {
-                    description: {
-                      search: q
-                    },
-                },
-                {
-                    slug: {
-                      search: q
-                    },
-                },
-              ],
-            },
-          })
-
-          console.log(searchProduct);
-
-        if(!searchProduct){
-            throw new Error("Error Search")
-        }
-
-        res.json({
-            message: "Résultat de votre recherche",
-            count: 3,
-            searchproduct: searchProduct
-        })
-
-    } catch(error){
-        let message = "Une erreur c'est produite."
-        let code = 500
-
-        if(error == "Error Delete"){
-            message = "Une erreur c'est produite lors de la suppression du produit."
-        }
-
-        res.status(code).json({
-            message
-        })
-    }
-}
-
-const generateSlug = async (slug) => {
-    let slugExist = await prisma.products.findUnique({
-        where: {
-            slug: slug,
-        },
-    })
-
-    let slugNb = 0
-    let slugGenerate = slug
-
-    while (slugExist){
-        slugGenerate = slug + "-" + slugNb 
-        slugNb++
-
-        slugExist = await prisma.products.findUnique({
-            where: {
-                slug: slugGenerate,
-            },
-        })
-
-    }
-
-    slug = slugGenerate
-
-    return slug
 }
