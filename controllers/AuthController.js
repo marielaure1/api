@@ -196,15 +196,6 @@ export const login = async (req, res) => {
         })
 
         const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
-
-        const updateToken = await prisma.users.update({ 
-            where: {
-                email: findUser.email
-            },
-            data: { 
-                token
-            }
-        })
         
         return res.status(200).json({
             token
@@ -218,6 +209,45 @@ export const login = async (req, res) => {
             message = "Les identifiants sont incorrects."
         }
 
+        console.log(error);
+
+        return res.status(code).json({
+            message
+        })
+    }
+}
+
+
+export const me = async (req, res) => {
+    const { token } = res
+
+    try{
+
+        const findUser = await prisma.users.findFirst({
+            where: { 
+                email: token.emal
+            }
+        })
+
+        
+        if(!findUser){
+            throw new Error("Error Me")
+        }
+        
+        return res.status(200).json({
+            me: findUser
+        })
+
+    } catch(error){
+        let message = "Une erreur c'est produite."
+        let code = 500
+
+        if(error == "Error Me"){
+            message = "Données indisponible"
+        }
+
+        console.log(error);
+
         return res.status(code).json({
             message
         })
@@ -227,9 +257,9 @@ export const login = async (req, res) => {
 export const logout = async(req, res, next) => {
 
     try{
-        res.setHeader('Authorization', '')
+        req.removeHeader('Authorization');
 
-        return res.status(code).json({
+        return res.status(204).json({
             message: "Deconnexion"
         })
 
@@ -237,7 +267,7 @@ export const logout = async(req, res, next) => {
     } catch(error){
         let message = "Echec deconnexion"
         
-        return res.status(500).json({
+        return res.status(401).json({
             message
         })
     }
