@@ -5,6 +5,7 @@ const { JWT_KEY } = process.env
 const prisma = new PrismaClient()
 
 export const authentification = async(req, res, next) => {
+    console.log(req);
     const header = req.headers['authorization']
     const tokenHeader = header && header.split(' ')[1]
     
