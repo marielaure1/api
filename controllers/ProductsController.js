@@ -4,7 +4,7 @@ const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id } = req.body
+    const { title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories } = req.body
 
     if(!title || !images || !price || !slug ){
 
@@ -31,6 +31,7 @@ export const request = async (req, res, next) => {
     res.stock = stock 
     res.plan_id = plan_id 
     res.collection_id = collection_id 
+    res.categories = categories 
 
     next()
 }
@@ -63,7 +64,7 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id  } = res
+    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id, categories  } = res
     let slug = res.slug
 
     slug = await generateSlug(slug)
@@ -72,7 +73,7 @@ export const createData = async (req, res) => {
 
         const createProduct = await prisma.products.create({
             data: {
-                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id
+                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories
             },
         });
 
@@ -91,6 +92,12 @@ export const createData = async (req, res) => {
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création du produit."
         }
+
+        const createError = await prisma.error.create({
+            data: {
+                message: error
+            },
+        });
 
         res.status(code).json({
             message
@@ -143,7 +150,7 @@ export const updateData = async(req, res) => {
                 id: parseInt(id)
             },
             data: { 
-                title, images, price, slug, short_description, description, plan, categories
+                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories
             }
         })
 

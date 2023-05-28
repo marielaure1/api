@@ -43,22 +43,25 @@ export const request = async (req, res, next) => {
     res.first_name = first_name
     res.last_name = last_name
     res.password = bcrypt.hashSync(password, 12)
-
+    
     next()
 }
 
 export const register = async (req, res) => {
-    const { email, first_name, last_name, password } = res
+    const { email, first_name, last_name, password, stripe_id } = res
 
+    console.log("d");
     try{
-
         const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
+        console.log({ email, first_name, last_name, password, stripe_id, token });
 
         const createUser = await prisma.users.create({
             data: { 
-                email, first_name, last_name, password, token
+                email, first_name, last_name, password, token, stripe_id
             },
         })
+
+        console.log("authete");
 
         if(!createUser){
             throw new Error("Error Create")
@@ -76,6 +79,12 @@ export const register = async (req, res) => {
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création de l'utilisateur."
         }
+
+        const createError = await prisma.error.create({
+            data: {
+                message: error
+            },
+        });
 
         return res.status(code).json({
             message

@@ -20,8 +20,8 @@ model Users {
   created_at          DateTime              @default(now())
   updated_at          DateTime              @updatedAt
   token               String?
-  stripe_id           Int
-  products_order      Products_Order[]      // Un utilisateur peut passer plusieurs commandes de produits
+  stripe_id           String
+  products_order      Products_Order[]     // Un utilisateur peut passer plusieurs commandes de produits
   subscriptions_order Subscriptions_Order[] // Un utilisateur peut passer plusieurs commandes d'abonnements
   posts               Post[]                // Un utilisateur peut publier plusieurs articles
   subscriptions       Subscriptions[]       // Un utilisateur peut avoir plusieurs abonnements
@@ -39,6 +39,7 @@ model Products {
   description       String         @db.Text()
   published         Boolean
   stock             Int
+  stripe_id         Int
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   categories        Categories[]   // Plusieurs produits peuvent appartenir à plusieurs catégories

@@ -8,7 +8,7 @@ const stripe = stripePackage(STRIPE_SECRET_KEY);
 
 
 export const createCustomerStripe = async (req, res, next) => {
-    const { email, first_name, last_name, password, address, phone, role } = req.body
+    const { email, first_name, last_name, password, address, phone, role } = res
 
     try{
         
@@ -28,6 +28,8 @@ export const createCustomerStripe = async (req, res, next) => {
         res.role = role
 
         res.stripe_id = customer.id
+
+        console.log(password);
 
         next()
     } catch(error){
