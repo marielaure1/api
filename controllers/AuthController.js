@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import { emailValidator, passwordValidator } from "../validators/UsersValidators.js"
+import { createCustomerStripe } from '../services/StripeService/StripeCustomersService.js'
 
 const { JWT_KEY } = process.env
 const prisma = new PrismaClient()
@@ -17,9 +18,9 @@ export const request = async (req, res, next) => {
 
         emailError = (email && email.trim() == "") ??  "Veuillez saisir votre email."
         first_nameError = (first_name && first_name.trim() == "") ??  "Veuillez saisir votre prénom."
-        last_nameError = (last_name && last_name == "") ??  "Veuillez saisir votre nom."
-        passwordError = (password && password == "") ??  "Veuillez saisir votre mot de passe."
-        verifPasswordError = (verifPassword && verifPassword == "") ??  "Veuillez confirmer votre mot de passe."
+        last_nameError = (last_name && last_name.trim() == "") ??  "Veuillez saisir votre nom."
+        passwordError = (password && password.trim() == "") ??  "Veuillez saisir votre mot de passe."
+        verifPasswordError = (verifPassword && verifPassword.trim() == "") ??  "Veuillez confirmer votre mot de passe."
     }
 
     if(!emailValidator(email).validate){
@@ -27,10 +28,29 @@ export const request = async (req, res, next) => {
         emailError = emailValidator(email).emailError
     }
 
-    if(!passwordValidator(password).validate){
+    let passwordValidatorResult = passwordValidator(password, verifPassword)
+
+    if(!passwordValidatorResult.validate){
         errors = true
-        passwordError = passwordValidator(password).passwordError
-        verifPasswordError = passwordValidator(password).verifPasswordError
+
+        if(passwordValidatorResult.passwordError){
+            passwordError = passwordValidatorResult.passwordError
+        }
+
+        if(passwordValidatorResult.verifPasswordError){
+            verifPasswordError = passwordValidatorResult.verifPasswordError
+        }
+    }
+
+    const findUser = await prisma.users.findFirst({
+        where: { 
+            email
+        }
+    })
+    
+    if(findUser){
+        errors = true
+        emailError = "Ce compte existe déjà."
     }
 
     if(errors) {
@@ -38,6 +58,7 @@ export const request = async (req, res, next) => {
             error: { emailError, first_nameError, last_nameError, passwordError, verifPasswordError }
         })
     }
+
 
     res.email = email
     res.first_name = first_name
@@ -48,23 +69,38 @@ export const request = async (req, res, next) => {
 }
 
 export const register = async (req, res) => {
-    const { email, first_name, last_name, password, stripe_id } = res
+    const { email, first_name, last_name, password } = res
+    let stripe_id = "N/A"
 
-    console.log("d");
     try{
-        const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
-        console.log({ email, first_name, last_name, password, stripe_id, token });
 
         const createUser = await prisma.users.create({
             data: { 
-                email, first_name, last_name, password, token, stripe_id
+                email, first_name, last_name, password, stripe_id
             },
         })
 
-        console.log("authete");
+        console.log("test");
+
+        const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
 
         if(!createUser){
             throw new Error("Error Create")
+        }
+
+        const createStripeUser = await createCustomerStripe({ email, first_name, last_name, password })
+
+        const updateUser = await prisma.users.update({ 
+            where: {
+                id: createUser.id
+            },
+            data: { 
+                stripe_id: createStripeUser
+            }
+        })
+
+        if(!updateUser){
+            throw new Error("Error Create Stripe")
         }
 
         return res.status(200).json({
@@ -78,13 +114,52 @@ export const register = async (req, res) => {
 
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création de l'utilisateur."
+
+            // try{
+            //     const error = await prisma.error.create({
+            //         data: { 
+            //             message: {
+            //                 route: "/api/auth/register",
+            //                 error
+            //             }
+            //         },
+            //     })
+            // } catch(error){
+            //     console.log(error)
+            // }
         }
 
-        const createError = await prisma.error.create({
-            data: {
-                message: error
-            },
-        });
+        if(error == "Error Update"){
+            message = "Une erreur c'est produite lors de l'ajout du stripe_id de l'utilisateur."
+
+            // try{
+            //     const error = await prisma.error.create({
+            //         data: { 
+            //             message: {
+            //                 route: "/api/auth/register",
+            //                 error
+            //             }
+            //         },
+            //     })
+            // } catch(error){
+            //     console.log(error)
+            // }
+        }
+
+        // try{
+        //     const error = await prisma.error.create({
+        //         data: { 
+        //             message: {
+        //                 route: "/api/auth/register",
+        //                 error
+        //             }
+        //         },
+        //     })
+        // } catch(error){
+        //     console.log(error)
+        // }
+
+        console.log(error);
 
         return res.status(code).json({
             message

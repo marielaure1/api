@@ -19,7 +19,6 @@ model Users {
   role                Users_Role?           @default(USER)
   created_at          DateTime              @default(now())
   updated_at          DateTime              @updatedAt
-  token               String?
   stripe_id           String
   products_order      Products_Order[]     // Un utilisateur peut passer plusieurs commandes de produits
   subscriptions_order Subscriptions_Order[] // Un utilisateur peut passer plusieurs commandes d'abonnements

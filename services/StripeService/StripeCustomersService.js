@@ -7,8 +7,8 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const stripe = stripePackage(STRIPE_SECRET_KEY);
 
 
-export const createCustomerStripe = async (req, res, next) => {
-    const { email, first_name, last_name, password, address, phone, role } = res
+export const createCustomerStripe = async (req) => {
+    const { email, first_name, last_name, password, address, phone, role } = req
 
     try{
         
@@ -19,24 +19,15 @@ export const createCustomerStripe = async (req, res, next) => {
             phone
         });
 
-        res.email = email
-        res.first_name = first_name
-        res.last_name = last_name
-        res.password = password
-        res.address = address
-        res.phone = phone
-        res.role = role
+        let stripe_id = customer.id
 
-        res.stripe_id = customer.id
+        return stripe_id 
 
-        console.log(password);
-
-        next()
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
 
-        res.status(code).json({
+        return res.status(code).json({
             message
         })
     }

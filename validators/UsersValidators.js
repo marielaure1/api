@@ -34,7 +34,7 @@ export const passwordValidator = (password, verifPassword = false) => {
 
     if(verifPassword && password != verifPassword){
         validate = false
-        verifPassword = "Les deux mots de pass doit être identique"
+        verifPasswordError = "Les deux mots de passe doivent être identique"
     }
 
     return {validate, passwordError, verifPasswordError}
