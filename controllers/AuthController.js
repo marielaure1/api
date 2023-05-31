@@ -88,7 +88,7 @@ export const register = async (req, res) => {
             throw new Error("Error Create")
         }
 
-        const createStripeUser = await createCustomerStripe({ email, first_name, last_name, password })
+        const createStripeUser = await createCustomerStripe({ email, first_name, last_name })
 
         const updateUser = await prisma.users.update({ 
             where: {

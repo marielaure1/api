@@ -8,7 +8,7 @@ const stripe = stripePackage(STRIPE_SECRET_KEY);
 
 
 export const createCustomerStripe = async (req) => {
-    const { email, first_name, last_name, password, address, phone, role } = req
+    const { email, first_name, last_name, address, phone } = req
 
     try{
         
@@ -27,9 +27,7 @@ export const createCustomerStripe = async (req) => {
         let message = "Une erreur c'est produite."
         let code = 500
 
-        return res.status(code).json({
-            message
-        })
+        return message
     }
       
 }

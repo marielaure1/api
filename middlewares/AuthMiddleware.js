@@ -5,9 +5,10 @@ const { JWT_KEY } = process.env
 const prisma = new PrismaClient()
 
 export const authentification = async(req, res, next) => {
-    console.log(req);
     const header = req.headers['authorization']
     const tokenHeader = header && header.split(' ')[1]
+    
+ try{    
     
     if(!tokenHeader){
         return res.status(500).json({
@@ -23,7 +24,6 @@ export const authentification = async(req, res, next) => {
         }
       });
 
-    try{
        
         const user = await prisma.users.findFirst({
             where: { 
