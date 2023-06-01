@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import { emailValidator, passwordValidator } from "../validators/UsersValidators.js"
+import { emailValidator, passwordValidator } from "../features/UsersValidators.js"
+// import { generatePasswordResetToken } from "../features/GenerateToken.js"
 import { createCustomerStripe } from '../services/StripeService/StripeCustomersService.js'
 
 const { JWT_KEY } = process.env
@@ -272,3 +273,121 @@ export const logout = async(req, res, next) => {
         })
     }
 }
+
+
+export const resetTokenEmail = async (req, res) => {
+  
+    const email = req.body
+
+    try {
+  
+      const user = await prisma.users.findFirst({
+          where: {
+            email
+          },
+      });
+
+
+  
+      return res.json({
+        message: "Mail envoyé",
+        token
+      });
+    } catch (error) {
+      let message = "Une erreur s'est produite.";
+      let code = 500;
+  
+      return res.status(code).json({
+        message
+      });
+    }
+  };
+
+export const resetTokenLinkExist = async (req, res) => {
+    const token = req.params.token;
+  
+    try {
+  
+      const user = await prisma.users.findFirst({
+          where: {
+            passwordResetToken: token,
+            passwordResetTokenExpiration: {
+              gte: Date.now(),
+            },
+          },
+      });
+  
+      return res.json({
+        message: "Modifier votre mot de passe.",
+        token
+      });
+    } catch (error) {
+      let message = "Une erreur s'est produite.";
+      let code = 500;
+  
+      if (error === "Error Delete") {
+        message = "Ce lien à expirer.";
+      }
+  
+      return res.status(code).json({
+        message
+      });
+    }
+  };
+  
+  
+  export const resetPassword = async (req, res) => {
+    const token = req.params.token;
+    const { password, passwordValidator } = req.body;
+    let errors = false
+  
+    try {
+
+        let passwordValidatorResult = passwordValidator(password, verifPassword)
+
+        if(!passwordValidatorResult.validate){
+            errors = true
+
+            if(passwordValidatorResult.passwordError){
+                passwordError = passwordValidatorResult.passwordError
+            }
+
+            if(passwordValidatorResult.verifPasswordError){
+                verifPasswordError = passwordValidatorResult.verifPasswordError
+            }
+        }
+
+        if(errors) {
+            return res.status(422).json({
+                error: {  passwordError, verifPasswordError }
+            })
+        }
+  
+      const user = await prisma.users.findFirst({
+          where: {
+            passwordResetToken: token
+          },
+      });
+
+      const updateUser = await prisma.users.update({ 
+        where: {
+            id: user.id
+        },
+        data: { 
+            password: bcrypt.hashSync(password, 12)
+        }
+    })
+  
+      return res.json({
+        message: "Modification du mot de passe réussi.",
+        token
+      });
+    } catch (error) {
+      let message = "Une erreur s'est produite.";
+      let code = 500;
+  
+      return res.status(code).json({
+        message
+      });
+    }
+  };

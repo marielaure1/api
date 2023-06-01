@@ -1,8 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { emailValidator, passwordValidator } from "../validators/UsersValidators.js";
+import { emailValidator, passwordValidator } from "../features/UsersValidators.js";
 import { createCustomerStripe, updateCustomerStripe, deleteCustomerStripe } from '../services/StripeService/StripeCustomersService.js';
+import { sendWelcomeEmail } from '../services/MailTrapService/MailtrapService.js';
+import crypto from 'crypto';
+import { generatePasswordResetToken } from "../features/GenerateToken.js"
 
 const { JWT_KEY } = process.env;
 const prisma = new PrismaClient();
@@ -128,7 +131,9 @@ export const createData = async (req, res) => {
         address,
         phone,
         role,
-        stripe_id
+        stripe_id,
+        passwordResetToken: generatePasswordResetToken(),
+        passwordResetTokenExpiration: new Date(Date.now() + 3600000)
       }
     });
 
@@ -154,6 +159,21 @@ export const createData = async (req, res) => {
         return res.status(500).json({
           message: "Une erreur s'est produite lors de l'ajout du stripe_id de l'utilisateur."
         });
+      }
+
+      try{
+        const passwordResetLink = `${APP_URL}/reset-password/${updateUser.passwordResetToken}`;
+
+        await sendWelcomeEmail(email, passwordResetLink);
+
+        return res.status(200).json({
+            message: "L'e-mail de bienvenue a été envoyé.",
+            token: res.token
+          });
+      } catch(error){
+        return res.status(409).json({
+            message: "Une erreur s'est produite lors de l'envoi de l'e-mail de bienvenue."
+          });
       }
     } catch (error) {
       console.log(error);
@@ -224,7 +244,7 @@ export const updateData = async (req, res) => {
       throw new Error("Error Update");
     }
 
-    res.json({
+    return res.json({
       message: "L'utilisateur a été modifié avec succès.",
       updateUser
     });
@@ -236,7 +256,7 @@ export const updateData = async (req, res) => {
       message = "Une erreur s'est produite lors de la modification de l'utilisateur.";
     }
 
-    res.status(code).json({
+    return res.status(code).json({
       message
     });
   }
@@ -256,7 +276,7 @@ export const deleteData = async (req, res) => {
       throw new Error("Error Delete");
     }
 
-    res.json({
+    return res.json({
       message: "L'utilisateur a été supprimé avec succès.",
       deleteUser
     });
@@ -268,8 +288,9 @@ export const deleteData = async (req, res) => {
       message = "Une erreur s'est produite lors de la suppression de l'utilisateur.";
     }
 
-    res.status(code).json({
+    return res.status(code).json({
       message
     });
   }
 };
+
