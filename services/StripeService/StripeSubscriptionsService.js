@@ -7,34 +7,47 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const stripe = stripePackage(STRIPE_SECRET_KEY);
 
 
-export const createSubscriptionStripe = async (req, res, next) => {
-    const { user_id, plan_id } = req.body
+export const createSubscriptionStripe = async (req, res) => {
+    const { user_stripe_id, plan_stripe_id  } = res
 
     try{
     
         // Créer un abonnement avec l'API Stripe
         const subscription = await stripe.subscriptions.create({
-            customer: user_id,
-            items: [{ plan: plan_id }],
-            billing_cycle_anchor: 'now',
+            customer: user_stripe_id,
+            items: [{ plan: plan_stripe_id }],
+            billing_cycle_anchor: Math.floor(Date.now() / 1000),
             cancel_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 90, // Annuler l'abonnement après 90 jours
         });
     
         res.subscription = subscription
-        res.user_id = user_id
-        res.plan_id = plan_id
-
-        next()
-    } catch(error){
+    } catch(error){  
         let message = "Une erreur c'est produite."
         let code = 500
 
-        console.log(error);
+        console.log("subscription order : " + error);
         res.status(code).json({
             message
         })
     }
       
+}
+
+export const checkout = async (req, res) => {
+    const { amount } = res
+
+    // Create a PaymentIntent with the order amount and currency
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "eur",
+        automatic_payment_methods: {
+            enabled: true,
+        },
+    });
+  
+    res.send({
+        clientSecret: paymentIntent.client_secret,
+    });
 }
 
 export const updateSubscriptionStripe = async (req, res, next) => {

@@ -1,21 +1,24 @@
 import { PrismaClient } from '@prisma/client'
+import { DateTime } from "luxon";
+
+const dt = DateTime.local(2017, 5, 15, 8, 30);
 
 const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, image, slug, published, limite } = req.body
+    const { title, image, slug, published } = req.body
 
-    if(!title || !image || !limite || !slug ){
+    if(!title || !image  || !slug ){
 
         let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
         let imageError = (image && image == "") ??  "Veuillez choisir au moins une image."
-        let limiteError = (limite && limite == "") ??  "Veuillez choisir une date limite."
+        // let limiteError = (limite && limite == "") ??  "Veuillez choisir une date limite."
         let slugError = (slug && slug.trim() == "") ??  "Veuillez choisir un slug."
       
 
         res.status(422).json({
-            error: { titleError, imageError, slugError, limiteError }
+            error: { titleError, imageError, slugError }
         })
     }
 
@@ -25,7 +28,7 @@ export const request = async (req, res, next) => {
     res.image = image
     res.slug = slug
     res.published = published
-    res.limite = limite
+    // res.limite = limite
 
     next()
 }
@@ -60,17 +63,17 @@ export const allData = async (req, res) => {
 export const createData = async (req, res) => {
     const { title, image, published  } = res
     let slug = res.slug
-    let limite = moment(res.limite).format()
+    // let limite = ""
 
     slug = await generateSlug(slug)
 
-    console.log({title, image, slug, published, limite});
+    console.log({title, image, slug, published});
 
     try{
 
         const createCollection = await prisma.collections.create({
             data: {
-                title, image, slug, published, limite
+                title, image, slug, published
             },
         });
 
@@ -91,6 +94,8 @@ export const createData = async (req, res) => {
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création de la collection."
         }
+
+        console.log(error);
 
         res.status(code).json({
             message

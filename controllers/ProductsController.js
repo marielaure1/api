@@ -39,14 +39,14 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allProduct = await prisma.products.findMany()
+        const allProducts = await prisma.products.findMany()
 
-        if(!allProduct){
+        if(!allProducts){
             throw new Error("Error Products")
         }
 
         res.json({
-            allProduct
+            allProducts
         })
 
     } catch(error){
@@ -56,6 +56,8 @@ export const allData = async (req, res) => {
         if(error == "Error Products"){
             message = "Il n'y a aucun produit."
         }
+
+        console.log(error);
 
         res.status(code).json({
             message
@@ -93,11 +95,7 @@ export const createData = async (req, res) => {
             message = "Une erreur c'est produite lors de la création du produit."
         }
 
-        const createError = await prisma.error.create({
-            data: {
-                message: error
-            },
-        });
+        console.log(error);
 
         res.status(code).json({
             message

@@ -34,14 +34,14 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allSubscriptions = await prisma.plans.findMany()
+        const allPlans = await prisma.plans.findMany()
 
-        if(!allSubscriptions){
+        if(!allPlans){
             throw new Error("Error Plans")
         }
 
         res.json({
-            allSubscriptions
+            allPlans
         })
 
     } catch(error){
@@ -69,13 +69,13 @@ export const createData = async (req, res) => {
 
     try{
 
-        const createSubscriptions = await prisma.plans.create({
+        const createPlans = await prisma.plans.create({
             data: { 
                 title, image, amount, slug, description, published, stripe_id, interval
             },
         })
 
-        if(!createSubscriptions){
+        if(!createPlans){
             throw new Error("Error Create")
         }
 
@@ -101,18 +101,18 @@ export const showData = async (req, res) => {
     const id = req.params.id
 
     try{
-        const showSubscriptions = await prisma.plans.findUnique({
+        const showPlans = await prisma.plans.findUnique({
             where: {
               id: parseInt(id)
             },
           })
 
-        if(!showSubscriptions){
+        if(!showPlans){
             throw new Error("Error Plans")
         }
 
         res.json({
-            showSubscriptions
+            showPlans
         })
 
     } catch(error){
@@ -138,7 +138,7 @@ export const updateData = async(req, res) => {
     slug = await generateSlug(slug)
 
     try{
-        const updateSubscriptions = await prisma.plans.update({ 
+        const updatePlans = await prisma.plans.update({ 
             where: {
                 id: parseInt(id)
             },
@@ -147,13 +147,13 @@ export const updateData = async(req, res) => {
             }
         })
 
-        if(!updateSubscriptions){
+        if(!updatePlans){
             throw new Error("Error Update")
         }
 
         res.json({
             message: "L'abonnement a été modifié avec succès.",
-            updateSubscriptions
+            updatePlans
         })
 
     } catch(error){
@@ -174,19 +174,19 @@ export const deleteData = async(req, res) => {
     const id = req.params.id
 
     try{
-        const deleteSubscriptions = await prisma.plans.delete({ 
+        const deletePlans = await prisma.plans.delete({ 
             where: {
                 id: parseInt(id)
             }
         })
 
-        if(!deleteSubscriptions){
+        if(!deletePlans){
             throw new Error("Error Delete")
         }
 
         res.json({
             message: "L'abonnement a été supprimé avec succès.",
-            deleteSubscriptions
+            deletePlans
         })
 
     } catch(error){

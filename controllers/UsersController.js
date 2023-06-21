@@ -17,64 +17,6 @@ const prisma = new PrismaClient();
  * @param {next} next
  */
 
-export const request = async (req, res, next) => {
-  const { email, first_name, last_name, password, verifPassword, address, phone, role } = req.body;
-  let emailError, first_nameError, last_nameError, passwordError, verifPasswordError, addressError, phoneError, roleError;
-  let errors = false;
-
-  if (!email || !first_name || !last_name || !password || !verifPassword || !address || !phone || !role) {
-    errors = true;
-
-    emailError = email && email.trim() === "" ? "Veuillez saisir un email." : null;
-    first_nameError = first_name && first_name.trim() === "" ? "Veuillez saisir un prénom." : null;
-    last_nameError = last_name && last_name.trim() === "" ? "Veuillez saisir un nom." : null;
-    passwordError = password && password.trim() === "" ? "Veuillez saisir un mot de passe." : null;
-    verifPasswordError = verifPassword && verifPassword.trim() === "" ? "Veuillez confirmer le mot de passe." : null;
-    addressError = address && address.trim() === "" ? "Veuillez choisir une adresse." : null;
-    phoneError = phone && phone.trim() === "" ? "Veuillez choisir un numéro de téléphone." : null;
-    roleError = role && role.trim() === "" ? "Veuillez choisir un rôle." : null;
-  }
-
-  // regex
-  const emailRegex = /^[A-Za-z\d]+([-_.][A-Za-z\d]+)*@([A-Za-z\d]+[-.])+[A-Za-z\d]{2,4}$/;
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z]).{8,20}$/;
-
-  if (!emailRegex.test(email)) {
-    errors = true;
-    emailError = "Veuillez saisir un email valide.";
-  }
-
-  let passwordValidatorResult = passwordValidator(password, verifPassword);
-
-  if (!passwordValidatorResult.validate) {
-    errors = true;
-
-    if (passwordValidatorResult.passwordError) {
-      passwordError = passwordValidatorResult.passwordError;
-    }
-
-    if (passwordValidatorResult.verifPasswordError) {
-      verifPasswordError = passwordValidatorResult.verifPasswordError;
-    }
-  }
-
-  if (errors) {
-    return res.status(422).json({
-      error: { emailError, first_nameError, last_nameError, passwordError, verifPasswordError, address, phone, role }
-    });
-  }
-
-  res.email = email;
-  res.first_name = first_name;
-  res.last_name = last_name;
-  res.password = bcrypt.hashSync(password, 12);
-  res.address = address;
-  res.phone = phone;
-  res.role = role;
-
-  next();
-};
-
 export const allData = async (req, res) => {
   try {
     const allUser = await prisma.users.findMany();
@@ -94,6 +36,8 @@ export const allData = async (req, res) => {
       message = "Il n'y a aucun utilisateur.";
     }
 
+    console.log(error);
+
     res.status(code).json({
       message
     });
@@ -101,7 +45,47 @@ export const allData = async (req, res) => {
 };
 
 export const createData = async (req, res) => {
-  const { email, first_name, last_name, password, address, phone, role } = req.body;
+  const { email, first_name, last_name, password, verifPassword, address, phone, role } = req.body;
+  let emailError, first_nameError, last_nameError, passwordError, verifPasswordError, addressError, phoneError, roleError;
+  let errors = false;
+
+  if (!email || !first_name || !last_name || !password || !verifPassword || !phone || !role) {
+    errors = true;
+
+    emailError = email && email.trim() === "" ? "Veuillez saisir un email." : null;
+    first_nameError = first_name && first_name.trim() === "" ? "Veuillez saisir un prénom." : null;
+    last_nameError = last_name && last_name.trim() === "" ? "Veuillez saisir un nom." : null;
+    passwordError = password && password.trim() === "" ? "Veuillez saisir un mot de passe." : null;
+    verifPasswordError = verifPassword && verifPassword.trim() === "" ? "Veuillez confirmer le mot de passe." : null;
+    phoneError = phone && phone.trim() === "" ? "Veuillez choisir un numéro de téléphone." : null;
+    roleError = role && role.trim() === "" ? "Veuillez choisir un rôle." : null;
+  }
+
+  if(!emailValidator(email).validate){
+    errors = true
+    emailError = emailValidator(email).emailError
+}
+
+  let passwordValidatorResult = passwordValidator(password, verifPassword);
+
+  if (!passwordValidatorResult.validate) {
+    errors = true;
+
+    if (passwordValidatorResult.passwordError) {
+      passwordError = passwordValidatorResult.passwordError;
+    }
+
+    if (passwordValidatorResult.verifPasswordError) {
+      verifPasswordError = passwordValidatorResult.verifPasswordError;
+    }
+  }
+
+  if (errors) {
+    return res.status(422).json({
+      error: { emailError, first_nameError, last_nameError, passwordError, verifPasswordError, phoneError, roleError }
+    });
+  }
+
   let stripe_id = "N/A";
 
   if (email) {
@@ -127,19 +111,25 @@ export const createData = async (req, res) => {
         email,
         first_name,
         last_name,
-        password,
+        password: bcrypt.hashSync(password, 12),
         address,
         phone,
         role,
         stripe_id,
         passwordResetToken: generatePasswordResetToken(),
-        passwordResetTokenExpiration: new Date(Date.now() + 3600000)
       }
     });
+    
 
 
     try {
       const createStripeUser = await createCustomerStripe({ email, first_name, last_name, address, phone });
+
+      if(createStripeUser.message){
+        return res.status(200).json({
+          message: "Erreur Stripe"
+        });
+      }
 
       try {
         const updateUser = await prisma.users.update({
@@ -147,7 +137,7 @@ export const createData = async (req, res) => {
             id: createUser.id
           },
           data: {
-            stripe_id: createStripeUser
+            stripe_id: createStripeUser.stripe_id
           }
         });
 
@@ -203,7 +193,7 @@ export const showData = async (req, res) => {
       throw new Error("Error Users");
     }
 
-    res.json({
+    return res.json({
       showUser
     });
   } catch (error) {
@@ -214,17 +204,42 @@ export const showData = async (req, res) => {
       message = "Il n'y a aucun utilisateur.";
     }
 
-    res.status(code).json({
+    return res.status(code).json({
       message
     });
   }
 };
 
 export const updateData = async (req, res) => {
-  const { email, first_name, last_name, password, address, phone, role } = res;
+  const { email, first_name, last_name, address, phone, role } = req.body;
+  let emailError, first_nameError, last_nameError, phoneError;
+  let errors = false;
+
+  if (!email || !first_name || !last_name || !phone) {
+    errors = true;
+
+    emailError = email && email.trim() === "" ? "Veuillez saisir un email." : null;
+    first_nameError = first_name && first_name.trim() === "" ? "Veuillez saisir un prénom." : null;
+    last_nameError = last_name && last_name.trim() === "" ? "Veuillez saisir un nom." : null;
+    phoneError = phone && phone.trim() === "" ? "Veuillez choisir un numéro de téléphone." : null;
+  }
+
+  if(!emailValidator(email).validate){
+    errors = true
+    emailError = emailValidator(email).emailError
+}
+
+
+  if (errors) {
+    return res.status(422).json({
+      error: { emailError, first_nameError, last_nameError, phoneError }
+    });
+  }
+
   const id = req.params.id;
 
   try {
+    
     const updateUser = await prisma.users.update({
       where: {
         id: parseInt(id)
@@ -233,7 +248,6 @@ export const updateData = async (req, res) => {
         email,
         first_name,
         last_name,
-        password,
         address,
         phone,
         role
@@ -255,6 +269,96 @@ export const updateData = async (req, res) => {
     if (error === "Error Update") {
       message = "Une erreur s'est produite lors de la modification de l'utilisateur.";
     }
+
+    return res.status(code).json({
+      message
+    });
+  }
+};
+
+export const updatePassword = async (req, res) => {
+  const { currentPassword, newPassword, verifPassword } = req.body;
+  let currentPasswordError, newPasswordError, verifPasswordError;
+  let errors = false;
+
+  if (!currentPassword || !newPassword || !verifPassword) {
+    errors = true;
+
+    currentPasswordError = currentPassword && currentPassword.trim() === "" ? "Veuillez votre un mot de passe actuel." : null;
+    newPasswordError = newPassword && newPassword.trim() === "" ? "Veuillez saisir un nouveau mot de passe." : null;
+    verifPasswordError = verifPassword && verifPassword.trim() === "" ? "Veuillez confirmer nouveau le mot de passe." : null;
+  }
+
+  let passwordValidatorResult = passwordValidator(newPassword, verifPassword);
+
+  if (!passwordValidatorResult.validate) {
+    errors = true;
+
+    if (passwordValidatorResult.passwordError) {
+      newPasswordError = passwordValidatorResult.passwordError;
+    }
+
+    if (passwordValidatorResult.verifPasswordError) {
+      verifPasswordError = passwordValidatorResult.verifPasswordError;
+    }
+  }
+
+  if (errors) {
+    return res.status(422).json({
+      error: { currentPasswordError, newPasswordError, verifPasswordError }
+    });
+  }
+
+  const id = req.params.id;
+
+  try {
+
+    const findUser = await prisma.users.findFirst({
+        where: {
+            id:parseInt(id),
+        },
+    });
+
+    if (!findUser) {
+        return res.status(409).json({
+            message: "Les identifiants sont incorrects.",
+        });
+    }
+
+    bcrypt.compare(newPassword, findUser.password, (err, result) => {
+        if (err || !result) {
+            return res.status(409).json({
+                message: "Mot de passe incorrect.",
+            });
+        } 
+    });
+
+    const updateUser = await prisma.users.update({
+      where: {
+        id: parseInt(id)
+      },
+      data: {
+        password: bcrypt.hashSync(newPassword, 12)
+      }
+    });
+
+    if (!updateUser) {
+      throw new Error("Error Update");
+    }
+
+    return res.json({
+      message: "L'utilisateur a été modifié avec succès.",
+      updateUser
+    });
+  } catch (error) {
+    let message = "Une erreur s'est produite.";
+    let code = 500;
+
+    if (error === "Error Update") {
+      message = "Une erreur s'est produite lors de la modification de l'utilisateur.";
+    }
+
+    console.log(error);
 
     return res.status(code).json({
       message

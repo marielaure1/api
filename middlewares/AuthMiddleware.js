@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 export const authentification = async(req, res, next) => {
     const header = req.headers['authorization']
     const tokenHeader = header && header.split(' ')[1]
-    
+    console.log(header);
  try{    
     
     if(!tokenHeader){

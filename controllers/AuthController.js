@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken"
 import { emailValidator, passwordValidator } from "../features/UsersValidators.js"
 // import { generatePasswordResetToken } from "../features/GenerateToken.js"
 import { createCustomerStripe } from '../services/StripeService/StripeCustomersService.js'
+import { sendWelcomeEmail } from '../services/MailTrapService/MailtrapService.js'
 
 const { JWT_KEY } = process.env
 const prisma = new PrismaClient()
@@ -14,24 +15,39 @@ export const request = async (req, res, next) => {
     let emailError, first_nameError, last_nameError, passwordError, verifPasswordError;
     let errors = false;
 
+    // console.log(req);
+    
     if(!email || !first_name || !last_name || !password || !verifPassword){
         errors = true
 
-        emailError = (email && email.trim() == "") ??  "Veuillez saisir votre email."
-        first_nameError = (first_name && first_name.trim() == "") ??  "Veuillez saisir votre prénom."
-        last_nameError = (last_name && last_name.trim() == "") ??  "Veuillez saisir votre nom."
-        passwordError = (password && password.trim() == "") ??  "Veuillez saisir votre mot de passe."
-        verifPasswordError = (verifPassword && verifPassword.trim() == "") ??  "Veuillez confirmer votre mot de passe."
-    }
+        emailError = (!email || email.trim() == "") ? "Veuillez saisir votre email." : ""
+        first_nameError = (!first_name && first_name.trim() == "") ?  "Veuillez saisir votre prénom." : ""
+        last_nameError = (!last_name && last_name.trim() == "") ?  "Veuillez saisir votre nom." : ""
+        passwordError = (!password && password.trim() == "") ?  "Veuillez saisir votre mot de passe." : ""
+        verifPasswordError = (!verifPassword && verifPassword.trim() == "") ?  "Veuillez confirmer votre mot de passe." : ""
 
-    if(!emailValidator(email).validate){
+        console.log(first_nameError);
+    } 
+    
+    if(!emailError && !emailValidator(email).validate){
         errors = true
         emailError = emailValidator(email).emailError
+    } else{
+        const findUser = await prisma.users.findFirst({
+            where: { 
+                email
+            }
+        })
+        
+        if(findUser){
+            errors = true
+            emailError = "Ce compte existe déjà."
+        }
     }
 
     let passwordValidatorResult = passwordValidator(password, verifPassword)
 
-    if(!passwordValidatorResult.validate){
+    if(!password && !passwordValidatorResult.validate){
         errors = true
 
         if(passwordValidatorResult.passwordError){
@@ -43,18 +59,9 @@ export const request = async (req, res, next) => {
         }
     }
 
-    const findUser = await prisma.users.findFirst({
-        where: { 
-            email
-        }
-    })
-    
-    if(findUser){
-        errors = true
-        emailError = "Ce compte existe déjà."
-    }
-
     if(errors) {
+
+        
         return res.status(422).json({
             error: { emailError, first_nameError, last_nameError, passwordError, verifPasswordError }
         })
@@ -91,12 +98,15 @@ export const register = async (req, res) => {
 
         const createStripeUser = await createCustomerStripe({ email, first_name, last_name })
 
+        if(!createStripeUser.stripe_id){
+            throw new Error("Error Update")
+        }
         const updateUser = await prisma.users.update({ 
             where: {
                 id: createUser.id
             },
             data: { 
-                stripe_id: createStripeUser
+                stripe_id: createStripeUser.stripe_id
             }
         })
 
@@ -104,8 +114,14 @@ export const register = async (req, res) => {
             throw new Error("Error Create Stripe")
         }
 
+        const sendEmail = await sendWelcomeEmail(createUser.email)
+
+        if(!sendEmail){
+            throw new Error("Error Send Email")
+        }
+
         return res.status(200).json({
-            message: "L'utilisateur a été créé avec succès.",
+            message: "L'utilisateur a été créé avec succès. Un email de bienvenue lui a été envoyé !",
             token
         })
 
@@ -115,50 +131,15 @@ export const register = async (req, res) => {
 
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création de l'utilisateur."
-
-            // try{
-            //     const error = await prisma.error.create({
-            //         data: { 
-            //             message: {
-            //                 route: "/api/auth/register",
-            //                 error
-            //             }
-            //         },
-            //     })
-            // } catch(error){
-            //     console.log(error)
-            // }
         }
 
         if(error == "Error Update"){
             message = "Une erreur c'est produite lors de l'ajout du stripe_id de l'utilisateur."
-
-            // try{
-            //     const error = await prisma.error.create({
-            //         data: { 
-            //             message: {
-            //                 route: "/api/auth/register",
-            //                 error
-            //             }
-            //         },
-            //     })
-            // } catch(error){
-            //     console.log(error)
-            // }
         }
 
-        // try{
-        //     const error = await prisma.error.create({
-        //         data: { 
-        //             message: {
-        //                 route: "/api/auth/register",
-        //                 error
-        //             }
-        //         },
-        //     })
-        // } catch(error){
-        //     console.log(error)
-        // }
+        if(error == "Error Send Email"){
+            message = "Une erreur c'est produite lors de l'envoie de l'email à l'utilisateur."
+        }
 
         console.log(error);
 
@@ -167,57 +148,120 @@ export const register = async (req, res) => {
         })
     }
 }
-
 export const login = async (req, res) => {
-    const { email, password } = req.body
+    const { email, password } = req.body;
 
-    try{
+    try {
+        if (!email || !password) {
+            let emailError = !email || email.trim() === "" ? "Veuillez saisir votre email." : false;
+            let passwordError = !password || password.trim() === "" ? "Veuillez saisir votre mot de passe." : false;
+
+            return res.status(422).json({
+                errors: {
+                    emailError,
+                    passwordError,
+                },
+            });
+        }
 
         const findUser = await prisma.users.findFirst({
-            where: { 
-                email
-            }
-        })
+            where: {
+                email,
+            },
+        });
 
-        
-        if(!findUser){
-            throw new Error("Error SignIn")
+        if (!findUser) {
+            return res.status(409).json({
+                message: "Les identifiants sont incorrects.",
+            });
         }
 
-        bcrypt.compare(password, findUser.password, (err, rep) => {
-            if (err){
+        bcrypt.compare(password, findUser.password, (err, result) => {
+            if (err || !result) {
                 return res.status(409).json({
-                    message: "Une erreur c'est produite"
-                })
-            } else if (!rep){
-                return res.status(409).json({
-                    message: "Mot de passe incorrect."
-                })
+                    message: "Les identifiants sont incorrects.",
+                });
+            } else {
+                const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "1d" });
+
+                return res.status(200).json({
+                    token: token,
+                    user: findUser
+                });
             }
-        })
-
-        const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
+        });
         
-        return res.status(200).json({
-            token
-        })
-
-    } catch(error){
-        let message = "Une erreur c'est produite."
-        let code = 500
-
-        if(error == "Error SignIn"){
-            message = "Les identifiants sont incorrects."
-        }
-
+    } catch (error) {
         console.log(error);
+        let message = "Une erreur s'est produite.";
+        let code = 500;
 
         return res.status(code).json({
-            message
-        })
+            message,
+        });
     }
-}
+};
 
+export const loginAdmin = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        if (!email || !password) {
+            let emailError = !email || email.trim() === "" ? "Veuillez saisir votre email." : false;
+            let passwordError = !password || password.trim() === "" ? "Veuillez saisir votre mot de passe." : false;
+
+            return res.status(422).json({
+                errors: {
+                    emailError,
+                    passwordError,
+                },
+            });
+        }
+
+        const findUser = await prisma.users.findFirst({
+            where: {
+                email,
+            },
+        });
+
+        if (!findUser) {
+            return res.status(409).json({
+                message: "Les identifiants sont incorrects.",
+            });
+        }
+
+        bcrypt.compare(password, findUser.password, (err, result) => {
+            if (err || !result) {
+                return res.status(409).json({
+                    message: "Les identifiants sont incorrects.",
+                });
+            } else {
+
+                if (!findUser.role == "ADMIN") {
+                    return res.status(409).json({
+                        message: "Accès non authorisé",
+                    });
+                }
+        
+                const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "1d" });
+
+                return res.status(200).json({
+                    token: token,
+                    user: findUser
+                });
+            }
+        });
+
+    } catch (error) {
+        console.log(error);
+        let message = "Une erreur s'est produite.";
+        let code = 500;
+
+        return res.status(code).json({
+            message,
+        });
+    }
+};
 
 export const me = async (req, res) => {
     const { token } = res
@@ -258,7 +302,10 @@ export const me = async (req, res) => {
 export const logout = async(req, res, next) => {
 
     try{
-        req.removeHeader('Authorization');
+
+        console.log(req);
+        
+        // delete req.headers['authorization']
 
         return res.status(204).json({
             message: "Deconnexion"
@@ -268,6 +315,7 @@ export const logout = async(req, res, next) => {
     } catch(error){
         let message = "Echec deconnexion"
         
+        console.log(error);
         return res.status(401).json({
             message
         })

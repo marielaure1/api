@@ -16,8 +16,21 @@ export const request = async (req, res, next) => {
         })
     }
 
+    const user = await prisma.users.findFirst({
+        where: {
+          id: user_id
+        },
+      })
+    const plan = await prisma.plans.findFirst({
+        where: {
+          id: plan_id
+        },
+      })
+
     res.user_id = user_id
     res.plan_id = plan_id
+    res.user_stripe_id = user.stripe_id
+    res.plan_stripe_id = plan.stripe_id
 
     next()
 }
@@ -66,6 +79,8 @@ export const createData = async (req, res) => {
         if(!createSubscription){
             throw new Error("Error Create")
         }
+
+        // amount
 
         res.status(200).json({
             message: "L'inscription à l'abonnement a été créé avec succès."

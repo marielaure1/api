@@ -15,7 +15,7 @@ export const createProductStripe = async (req, res, next) => {
         const product = await stripe.products.create({
             name: title,
             images: images,
-            default_price: price,
+            default_price_data: price,
             description: description,
             metadata: {
                 plan_id,
@@ -44,6 +44,7 @@ export const createProductStripe = async (req, res, next) => {
         let message = "Une erreur c'est produite."
         let code = 500
 
+        console.log(error);
         res.status(code).json({
             message
         })

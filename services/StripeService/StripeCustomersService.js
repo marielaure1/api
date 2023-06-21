@@ -15,19 +15,20 @@ export const createCustomerStripe = async (req) => {
         const customer = await stripe.customers.create({
             email,
             name: first_name + " " + last_name,
-            address,
-            phone
+            address: address,
+            phone: phone
         });
 
         let stripe_id = customer.id
 
-        return stripe_id 
+        return {stripe_id }
 
     } catch(error){
         let message = "Une erreur c'est produite."
         let code = 500
+        console.log(error);
 
-        return message
+        return { message}
     }
       
 }

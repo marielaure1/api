@@ -1,9 +1,45 @@
 import nodemailer from 'nodemailer';
 
-const { MAIL_TRAP_HOST, MAIL_TRAP_PORT, MAIL_TRAP_USER, MAIL_TRAP_PASS} = process.env
+const { MAIL_TRAP_HOST, MAIL_TRAP_PORT, MAIL_TRAP_USER, MAIL_TRAP_PASS, APPLICATION_URL} = process.env
 
-// Fonction pour envoyer l'e-mail de bienvenue
-export const sendWelcomeEmail = async (email, passwordResetLink) => {
+
+// Fonction pour envoyer l'e-mail de bienvenue User
+export const sendWelcomeEmail = async (email) => {
+  const transporter = nodemailer.createTransport({
+    host: MAIL_TRAP_HOST,
+    port: MAIL_TRAP_PORT,
+    auth: {
+        user: MAIL_TRAP_USER,
+        pass: MAIL_TRAP_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: 'no-reply@youvence.com',
+    to: email,
+    subject: 'Bienvenue sur notre Youvence !',
+    html: `
+      <h1>Bienvenue sur notre Youvence !</h1>
+      <a href="${APPLICATION_URL}">Voir le site</a>
+    `,
+  };
+
+  console.log(mailOptions);
+
+  try {
+    await transporter.sendMail(mailOptions);
+
+    return true
+    console.log('E-mail de bienvenue envoyé !');
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'e-mail de bienvenue :', error);
+
+    return false
+  }
+};
+
+// Fonction pour envoyer l'e-mail de bienvenue Admin
+export const sendWelcomeEmailAdmin = async (email, passwordResetLink) => {
   const transporter = nodemailer.createTransport({
     host: MAIL_TRAP_HOST,
     port: MAIL_TRAP_PORT,
