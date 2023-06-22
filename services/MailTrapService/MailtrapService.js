@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 
-const { MAIL_TRAP_HOST, MAIL_TRAP_PORT, MAIL_TRAP_USER, MAIL_TRAP_PASS, APPLICATION_URL} = process.env
+
+const { MAIL_TRAP_HOST, MAIL_TRAP_PORT, MAIL_TRAP_USER, MAIL_TRAP_PASS, APPLICATION_URL, BACKOFFICE_URL} = process.env
 
 
 // Fonction pour envoyer l'e-mail de bienvenue User
@@ -20,7 +21,7 @@ export const sendWelcomeEmail = async (email) => {
     subject: 'Bienvenue sur notre Youvence !',
     html: `
       <h1>Bienvenue sur notre Youvence !</h1>
-      <a href="${APPLICATION_URL}">Voir le site</a>
+      <a href="${BACKOFFICE_URL}">Voir le site</a>
     `,
   };
 

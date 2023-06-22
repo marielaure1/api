@@ -7,7 +7,7 @@ import { sendWelcomeEmail } from '../services/MailTrapService/MailtrapService.js
 import crypto from 'crypto';
 import { generatePasswordResetToken } from "../features/GenerateToken.js"
 
-const { JWT_KEY } = process.env;
+const { JWT_KEY, BACKOFFICE_URL } = process.env;
 const prisma = new PrismaClient();
 
 /**
@@ -45,44 +45,28 @@ export const allData = async (req, res) => {
 };
 
 export const createData = async (req, res) => {
-  const { email, first_name, last_name, password, verifPassword, address, phone, role } = req.body;
-  let emailError, first_nameError, last_nameError, passwordError, verifPasswordError, addressError, phoneError, roleError;
+  const { email, first_name, last_name, address, phone, role } = req.body;
+  let emailError, first_nameError, last_nameError, phoneError, roleError;
   let errors = false;
 
-  if (!email || !first_name || !last_name || !password || !verifPassword || !phone || !role) {
+  if (!email || !first_name || !last_name | !phone || !role) {
     errors = true;
 
-    emailError = email && email.trim() === "" ? "Veuillez saisir un email." : null;
-    first_nameError = first_name && first_name.trim() === "" ? "Veuillez saisir un prénom." : null;
-    last_nameError = last_name && last_name.trim() === "" ? "Veuillez saisir un nom." : null;
-    passwordError = password && password.trim() === "" ? "Veuillez saisir un mot de passe." : null;
-    verifPasswordError = verifPassword && verifPassword.trim() === "" ? "Veuillez confirmer le mot de passe." : null;
-    phoneError = phone && phone.trim() === "" ? "Veuillez choisir un numéro de téléphone." : null;
-    roleError = role && role.trim() === "" ? "Veuillez choisir un rôle." : null;
+    emailError = (!email || email.trim() === "") ? "Veuillez saisir un email." : null;
+    first_nameError =( !first_name || first_name.trim() === "") ? "Veuillez saisir un prénom." : null;
+    last_nameError = (!last_name || last_name.trim() === "") ? "Veuillez saisir un nom." : null;
+    phoneError = (!phone || phone.trim() === "") ? "Veuillez choisir un numéro de téléphone." : null;
+    roleError = (!role || role.trim() === "") ? "Veuillez choisir un rôle." : null;
   }
 
-  if(!emailValidator(email).validate){
+  if(!emailError && !emailValidator(email).validate){
     errors = true
     emailError = emailValidator(email).emailError
 }
 
-  let passwordValidatorResult = passwordValidator(password, verifPassword);
-
-  if (!passwordValidatorResult.validate) {
-    errors = true;
-
-    if (passwordValidatorResult.passwordError) {
-      passwordError = passwordValidatorResult.passwordError;
-    }
-
-    if (passwordValidatorResult.verifPasswordError) {
-      verifPasswordError = passwordValidatorResult.verifPasswordError;
-    }
-  }
-
   if (errors) {
     return res.status(422).json({
-      error: { emailError, first_nameError, last_nameError, passwordError, verifPasswordError, phoneError, roleError }
+      error: { emailError, first_nameError, last_nameError, phoneError, roleError }
     });
   }
 
@@ -111,7 +95,7 @@ export const createData = async (req, res) => {
         email,
         first_name,
         last_name,
-        password: bcrypt.hashSync(password, 12),
+        password: "N/A",
         address,
         phone,
         role,
@@ -120,56 +104,40 @@ export const createData = async (req, res) => {
       }
     });
     
+    const createStripeUser = await createCustomerStripe({ email, first_name, last_name, address, phone });
 
+    if(!createStripeUser.stripe_id){
+      throw new Error("Error Update")
+    }
 
-    try {
-      const createStripeUser = await createCustomerStripe({ email, first_name, last_name, address, phone });
-
-      if(createStripeUser.message){
-        return res.status(200).json({
-          message: "Erreur Stripe"
-        });
+    const updateUser = await prisma.users.update({ 
+      where: {
+          id: createUser.id
+      },
+      data: { 
+          stripe_id: createStripeUser.stripe_id
       }
+    })
 
-      try {
-        const updateUser = await prisma.users.update({
-          where: {
-            id: createUser.id
-          },
-          data: {
-            stripe_id: createStripeUser.stripe_id
-          }
+    if(!updateUser){
+        throw new Error("Error Create Stripe")
+    }
+
+    try{
+      const passwordResetLink = `${BACKOFFICE_URL}/reset-password/${updateUser.passwordResetToken}`;
+
+      await sendWelcomeEmail(email, passwordResetLink);
+
+      return res.status(200).json({
+          message: "L'e-mail de bienvenue a été envoyé.",
+          token: res.token
         });
+    } catch(error){
 
-        return res.status(200).json({
-          message: "L'utilisateur a été créé avec succès."
-        });
-      } catch (error) {
-        console.log(error);
-        return res.status(500).json({
-          message: "Une erreur s'est produite lors de l'ajout du stripe_id de l'utilisateur."
-        });
-      }
-
-      try{
-        const passwordResetLink = `${APP_URL}/reset-password/${updateUser.passwordResetToken}`;
-
-        await sendWelcomeEmail(email, passwordResetLink);
-
-        return res.status(200).json({
-            message: "L'e-mail de bienvenue a été envoyé.",
-            token: res.token
-          });
-      } catch(error){
-        return res.status(409).json({
-            message: "Une erreur s'est produite lors de l'envoi de l'e-mail de bienvenue."
-          });
-      }
-    } catch (error) {
       console.log(error);
-      return res.status(500).json({
-        message: "Une erreur s'est produite lors de l'ajout de l'utilisateur dans Stripe Client."
-      });
+      return res.status(409).json({
+          message: "Une erreur s'est produite lors de l'envoi de l'e-mail de bienvenue."
+        });
     }
   } catch (error) {
     console.log(error);
