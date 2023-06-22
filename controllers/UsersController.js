@@ -291,7 +291,7 @@ export const updatePassword = async (req, res) => {
 
   let passwordValidatorResult = passwordValidator(newPassword, verifPassword);
 
-  if (!passwordValidatorResult.validate) {
+  if (!newPasswordError && !passwordValidatorResult.validate) {
     errors = true;
 
     if (passwordValidatorResult.passwordError) {
@@ -314,32 +314,32 @@ export const updatePassword = async (req, res) => {
   try {
 
     const findUser = await prisma.users.findFirst({
-        where: {
-            id:parseInt(id),
-        },
+      where: {
+        id: parseInt(id),
+      },
     });
 
     if (!findUser) {
-        return res.status(409).json({
-            message: "Les identifiants sont incorrects.",
-        });
+      return res.status(409).json({
+        message: "Les identifiants sont incorrects.",
+      });
     }
 
     bcrypt.compare(newPassword, findUser.password, (err, result) => {
-        if (err || !result) {
-            return res.status(409).json({
-                message: "Mot de passe incorrect.",
-            });
-        } 
+      if (err || !result) {
+        return res.status(409).json({
+          message: "Mot de passe incorrect.",
+        });
+      }
     });
 
     const updateUser = await prisma.users.update({
       where: {
-        id: parseInt(id)
+        id: parseInt(id),
       },
       data: {
-        password: bcrypt.hashSync(newPassword, 12)
-      }
+        password: bcrypt.hashSync(newPassword, 12),
+      },
     });
 
     if (!updateUser) {
@@ -348,7 +348,7 @@ export const updatePassword = async (req, res) => {
 
     return res.json({
       message: "L'utilisateur a été modifié avec succès.",
-      updateUser
+      updateUser,
     });
   } catch (error) {
     let message = "Une erreur s'est produite.";
@@ -361,7 +361,7 @@ export const updatePassword = async (req, res) => {
     console.log(error);
 
     return res.status(code).json({
-      message
+      message,
     });
   }
 };
