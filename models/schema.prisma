@@ -66,7 +66,7 @@ model Ingredients {
 model Plans {
   id            Int            @id @default(autoincrement())
   title         String         @db.VarChar(255)
-  image         Json
+  image         String?
   amount        Int
   stripe_id     String
   interval      String
@@ -187,8 +187,19 @@ model Error {
   created_at DateTime  @default(now())
 }
 
+model Medias {
+  id        Int      @id @default(autoincrement())
+  title     String?  @db.VarChar(255)
+  alt       String?  @db.VarChar(255)
+  url       String   @db.VarChar(255)
+  public_id String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
 enum Users_Role {
   USER
   ADMIN
-  SUPERADMIN
+  SUPERADMIN 
 }

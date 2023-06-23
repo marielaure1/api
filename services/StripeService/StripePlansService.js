@@ -14,7 +14,7 @@ export const createPlanStripe = async (req, res, next) => {
         
         const plan = await stripe.plans.create({ 
             active: published,
-            amount: amount, // Montant en centimes (exemple: 9.99 €)
+            amount: parseInt(amount), // Montant en centimes (exemple: 9.99 €)
             currency: 'eur', // Devise
             interval: interval, // Interval de facturation (exemple: mensuel)
             product: {
@@ -37,7 +37,9 @@ export const createPlanStripe = async (req, res, next) => {
         let message = "Une erreur c'est produite."
         let code = 500
 
-        res.status(code).json({
+        console.log(error);
+
+        return res.status(code).json({
             message
         })
     }

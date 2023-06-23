@@ -80,6 +80,7 @@ export const createData = async (req, res) => {
         }
 
         res.status(200).json({
+            createPlans,
             message: "L'abonnement a été créé avec succès."
         })
 
@@ -90,6 +91,8 @@ export const createData = async (req, res) => {
         if(error == "Error Create"){
             message = "Une erreur c'est produite lors de la création de l'abonnement."
         }
+
+        console.log(error);
 
         res.status(code).json({
             message

@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+// import dotenv from "dotenv"
 
 // Routes
 import productsRoutes from "./routes/ProductsRoutes.js"
@@ -7,6 +8,7 @@ import ingredientsRoutes from "./routes/IngredientsRoutes.js"
 import usersRoutes from "./routes/UsersRoutes.js"
 import authRoutes from "./routes/AuthRoutes.js"
 import plansRoutes from "./routes/PlansRoutes.js"
+import mediasRoutes from "./routes/MediasRoutes.js"
 import subscriptionsRoutes from "./routes/SubscriptionsRoutes.js"
 import collectionsRoutes from "./routes/CollectionsRoutes.js"
 import subscriptionsOrderRoutes from "./routes/SubscriptionsOrderRoutes.js"
@@ -20,7 +22,10 @@ import stripeRoutes from "./routes/StripeRoutes.js"
 import { authentification } from "./middlewares/AuthMiddleware.js"
 // import { contentType } from "./middlewares/ContentTypeMiddleware.js"
 
+// dotenv.config()
+
 const PORT = process.env.PORT || 3001;
+
 
 const app = express();
 
@@ -40,6 +45,7 @@ app.use("/api/promo-code", promoCodeRoutes)
 app.use("/api/users", authentification, usersRoutes)
 app.use("/api/auth", authRoutes)
 app.use("/api/stripe", stripeRoutes)
+app.use("/api/medias", mediasRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
