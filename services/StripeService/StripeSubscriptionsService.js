@@ -45,7 +45,7 @@ export const checkout = async (req, res) => {
         },
     });
   
-    res.send({
+    return res.send({
         clientSecret: paymentIntent.client_secret,
     });
 }

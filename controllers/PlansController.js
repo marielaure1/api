@@ -15,8 +15,8 @@ export const request = async (req, res, next) => {
         let descriptionError = (description && description.trim() == "") ??  "Veuillez saisir une description."
         let intervalError = (interval && interval.trim() == "") ??  "Veuillez saisir une intervale de facturation."
 
-        res.status(422).json({
-            error: { titleError, imageError, amountError, slugError, descriptionError, intervalError }
+        return res.status(422).json({
+            errors: { titleError, imageError, amountError, slugError, descriptionError, intervalError }
         })
     }
 
@@ -40,20 +40,20 @@ export const allData = async (req, res) => {
             throw new Error("Error Plans")
         }
 
-        res.json({
+        return res.json({
             allPlans
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Plans"){
-            message = "Il n'y a aucun abonnement."
+        if(e == "Error Plans"){
+            error = "Il n'y a aucun abonnement."
         }
 
-        res.status(code).json({
-            message
+        return res.status(code).json({
+            error
         })
     }
 }
@@ -71,7 +71,7 @@ export const createData = async (req, res) => {
 
         const createPlans = await prisma.plans.create({
             data: { 
-                title, image, amount, slug, description, published, stripe_id, interval
+                title, image, amount: parseInt(amount), slug, description, published, stripe_id, interval
             },
         })
 
@@ -79,23 +79,23 @@ export const createData = async (req, res) => {
             throw new Error("Error Create")
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             createPlans,
             message: "L'abonnement a été créé avec succès."
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Create"){
-            message = "Une erreur c'est produite lors de la création de l'abonnement."
+        if(e == "Error Create"){
+            error = "Une erreur c'est produite lors de la création de l'abonnement."
         }
 
-        console.log(error);
+        console.log(e);
 
-        res.status(code).json({
-            message
+        return res.status(code).json({
+            error
         })
     }
 }
@@ -104,71 +104,73 @@ export const showData = async (req, res) => {
     const id = req.params.id
 
     try{
-        const showPlans = await prisma.plans.findUnique({
+        const showPlan = await prisma.plans.findUnique({
             where: {
               id: parseInt(id)
             },
-          })
+        })
 
-        if(!showPlans){
+        if(!showPlan){
             throw new Error("Error Plans")
         }
 
-        res.json({
-            showPlans
+        return res.json({
+            showPlan
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Plans"){
-            message = "Il n'y a aucun abonnement."
+        if(e == "Error Plans"){
+            error = "Il n'y a aucun abonnement."
         }
 
-        console.log(error);
-        res.status(code).json({
-            message
+        console.log(e);
+        return res.status(code).json({
+            error
         })
     }
 }
 
 export const updateData = async(req, res) => {
-    const { title, image, amount, description, published, interval } = res
+    const { title, image, description, published } = res
     let slug = res.slug
     const id = req.params.id
 
     slug = await generateSlug(slug)
 
     try{
-        const updatePlans = await prisma.plans.update({ 
+        const updatePlan = await prisma.plans.update({ 
             where: {
                 id: parseInt(id)
             },
             data: { 
-                title, image, amount, slug, description, published, interval
+                title, image, slug, description, published
             }
         })
 
-        if(!updatePlans){
+        if(!updatePlan){
             throw new Error("Error Update")
         }
 
-        res.json({
+        return res.json({
             message: "L'abonnement a été modifié avec succès.",
-            updatePlans
+            updatePlan
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Update"){
-            message = "Une erreur c'est produite lors de la modification de l'abonnement."
+        if(e == "Error Update"){
+            error = "Une erreur c'est produite lors de la modification de l'abonnement."
         }
 
-        res.status(code).json({
-            message
+        console.log(e);
+
+        return res.status(code).json({
+            error
         })
     }
 }
@@ -177,31 +179,33 @@ export const deleteData = async(req, res) => {
     const id = req.params.id
 
     try{
-        const deletePlans = await prisma.plans.delete({ 
+        const deletePlan = await prisma.plans.delete({ 
             where: {
                 id: parseInt(id)
             }
         })
 
-        if(!deletePlans){
+        if(!deletePlan){
             throw new Error("Error Delete")
         }
 
-        res.json({
+        return res.json({
             message: "L'abonnement a été supprimé avec succès.",
-            deletePlans
+            deletePlan
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Delete"){
-            message = "Une erreur c'est produite lors de la suppression de l'abonnement."
+        if(e == "Error Delete" || e == "PrismaClientValidationError:"){
+            error = "Une erreur c'est produite lors de la suppression de l'abonnement."
         }
 
-        res.status(code).json({
-            message
+        console.log(e);
+
+        return res.status(code).json({
+            error
         })
     }
 }
