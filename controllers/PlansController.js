@@ -4,26 +4,24 @@ const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, image, amount, slug, description, published, interval } = req.body
+    const { title, image, amount, description, published, interval} = req.body
 
-    if(!title || !image || !amount || !slug || !description || !interval){
+    if(!title || !image || !amount || !description || !interval){
 
         let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
         let imageError = (image && image == "") ??  "Veuillez choisir au moins une image."
         let amountError = (amount && amount == "") ??  "Veuillez saisir un prix."
-        let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
         let descriptionError = (description && description.trim() == "") ??  "Veuillez saisir une description."
         let intervalError = (interval && interval.trim() == "") ??  "Veuillez saisir une intervale de facturation."
 
         return res.status(422).json({
-            errors: { titleError, imageError, amountError, slugError, descriptionError, intervalError }
+            errors: { titleError, imageError, amountError, descriptionError, intervalError }
         })
     }
 
     res.title = title
     res.image = image
     res.amount = amount
-    res.slug = slug
     res.description = description
     res.published = published
     res.interval = interval
@@ -58,20 +56,50 @@ export const allData = async (req, res) => {
     }
 }
 
+export const allDataPublished = async (req, res) => {
+
+    try{
+        const allPlans = await prisma.plans.findMany({
+            where: {
+                published: true,
+            }
+        })
+
+        if(!allPlans){
+            throw new Error("Error Plans")
+        }
+
+        return res.json({
+            allPlans
+        })
+
+    } catch(e){
+        let error = "Une erreur c'est produite."
+        let code = 500
+
+        if(e == "Error Plans"){
+            error = "Il n'y a aucun abonnement."
+        }
+
+        return res.status(code).json({
+            error
+        })
+    }
+}
+
 export const createData = async (req, res) => {
 
     const stripe_id = res.stripe_id;
 
-    const { title, image, amount, description, published, interval } = res
-    let slug = res.slug
-
-    slug = await generateSlug(slug)
+    const { title, image, amount, description, published, interval, lookup_key } = res
 
     try{
 
+        let slug = await generateSlug(title)
+
         const createPlans = await prisma.plans.create({
             data: { 
-                title, image, amount: parseInt(amount), slug, description, published, stripe_id, interval
+                title, image, amount: parseInt(amount) * 100, slug, description, published, stripe_id, interval, lookup_key
             },
         })
 
@@ -134,13 +162,17 @@ export const showData = async (req, res) => {
 }
 
 export const updateData = async(req, res) => {
-    const { title, image, description, published } = res
-    let slug = res.slug
+    const { title, image, description, published, oldTitle } = res
     const id = req.params.id
 
-    slug = await generateSlug(slug)
-
     try{
+
+        let slug = oldTitle
+
+        if(oldTitle != title){
+            slug = await generateSlug(slug)
+        }
+
         const updatePlan = await prisma.plans.update({ 
             where: {
                 id: parseInt(id)
@@ -211,28 +243,48 @@ export const deleteData = async(req, res) => {
 }
 
 const generateSlug = async (slug) => {
-    let slugExist = await prisma.plans.findFirst({
-        where: {
-            slug: slug,
-        },
-    })
 
-    let slugNb = 0
-    let slugGenerate = slug
+    try{
+        slug.toString()
+        .toLowerCase()
+        .replace(/\s+/g, '-') // Remplace les espaces par des tirets
+        .replace(/[^\w\-]+/g, '') // Supprime les caractères non alphanumériques et les tirets
+        .replace(/\-\-+/g, '-') // Remplace plusieurs tirets consécutifs par un seul tiret
+        .replace(/^-+/, '') // Supprime les tirets en début de chaîne
+        .replace(/-+$/, ''); // Supprime les tirets en fin de chaîne
 
-    while (slugExist){
-        slugGenerate = slug + "-" + slugNb 
-        slugNb++
-
-        slugExist = await prisma.plans.findFirst({
+        console.log(slug);
+        let slugExist = await prisma.plans.findFirst({
             where: {
-                slug: slugGenerate,
+                slug: slug,
             },
         })
 
+        let slugNb = 0
+        let slugGenerate = slug
+
+        if(!slugExist){
+            while (slugExist){
+                slugGenerate = slug + "-" + slugNb 
+                slugNb++
+        
+                slugExist = await prisma.plans.findFirst({
+                    where: {
+                        slug: slugGenerate,
+                    },
+                })
+        
+                console.log(slugExist);
+        
+            }
+        }
+
+        slug = slugGenerate
+
+        console.log(slug);
+
+        return slug
+    } catch(error){
+        console.log(error);
     }
-
-    slug = slugGenerate
-
-    return slug
 }

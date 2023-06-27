@@ -11,9 +11,11 @@ import plansRoutes from "./routes/PlansRoutes.js"
 import mediasRoutes from "./routes/MediasRoutes.js"
 import subscriptionsRoutes from "./routes/SubscriptionsRoutes.js"
 import collectionsRoutes from "./routes/CollectionsRoutes.js"
+import postsRoutes from "./routes/PostsRoutes.js"
 import subscriptionsOrderRoutes from "./routes/SubscriptionsOrderRoutes.js"
 import productsOrderRoutes from "./routes/ProductsOrderRoutes.js"
 import promoCodeRoutes from "./routes/PromoCodeRoutes.js"
+import categoriesRoutes from "./routes/CategoriesRoutes.js"
 
 // Service
 import stripeRoutes from "./routes/StripeRoutes.js"
@@ -39,6 +41,7 @@ app.use("/api/ingredients", ingredientsRoutes)
 app.use("/api/plans", plansRoutes)
 app.use("/api/subscriptions", subscriptionsRoutes)
 app.use("/api/collections", collectionsRoutes)
+app.use("/api/categories", categoriesRoutes)
 app.use("/api/subscriptions-order", subscriptionsOrderRoutes)
 app.use("/api/products-order", productsOrderRoutes)
 app.use("/api/promo-code", promoCodeRoutes)
@@ -46,6 +49,7 @@ app.use("/api/users", authentification, usersRoutes)
 app.use("/api/auth", authRoutes)
 app.use("/api/stripe", stripeRoutes)
 app.use("/api/medias", mediasRoutes)
+app.use("/api/posts", postsRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);

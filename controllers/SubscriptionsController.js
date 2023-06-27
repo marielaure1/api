@@ -27,10 +27,8 @@ export const request = async (req, res, next) => {
         },
       })
 
-    res.user_id = user_id
-    res.plan_id = plan_id
-    res.user_stripe_id = user.stripe_id
-    res.plan_stripe_id = plan.stripe_id
+    res.user = user
+    res.plan = plan
 
     next()
 }
@@ -63,9 +61,8 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { user_id, plan_id  } = res
+    const { user_id, plan_id, url } = res
 
-    console.log({ user_id, plan_id  });
     try{
 
         const createSubscription = await prisma.subscriptions.create({
@@ -74,8 +71,6 @@ export const createData = async (req, res) => {
             },
         });
 
-        console.log("ted");
-
         if(!createSubscription){
             throw new Error("Error Create")
         }
@@ -83,7 +78,8 @@ export const createData = async (req, res) => {
         // amount
 
         res.status(200).json({
-            message: "L'inscription à l'abonnement a été créé avec succès."
+            message: "L'inscription à l'abonnement a été créé avec succès.",
+            url
         })
 
     } catch(error){

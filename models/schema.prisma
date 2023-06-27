@@ -42,7 +42,8 @@ model Products {
   description       String         @db.Text()
   published         Boolean
   stock             Int
-  stripe_id         Int
+  stripe_id         String
+  stripe_price_id   String
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   categories        Categories[]   // Plusieurs produits peuvent appartenir à plusieurs catégories
@@ -69,6 +70,7 @@ model Plans {
   image         String?
   amount        Int
   stripe_id     String
+  lookup_key    String?
   interval      String
   slug          String         @unique(map: "Subscriptions_slug_key") @db.VarChar(255)
   description   String         @db.Text
@@ -85,7 +87,6 @@ model Subscriptions {
   user_id     Int
   plan        Plans      @relation(fields: [plan_id], references: [id])
   plan_id     Int
-  subscription  String
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   subscription_order    Subscriptions_Order[]
@@ -98,9 +99,10 @@ model Post {
   body         String    @db.Text
   image        String
   title        String    @db.VarChar(255)
+  description  String?   @db.VarChar(255)
   slug         String    @db.VarChar(255)
   published    Boolean
-  published_at DateTime
+  published_at DateTime?  @default(now())
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   user         Users     @relation(fields: [user_id], references: [id])
@@ -115,7 +117,7 @@ model Collections {
   title        String    @db.VarChar(255)
   slug         String    @db.VarChar(255)
   published    Boolean
-  limite       String?  
+  limite       DateTime
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   products     Products[]

@@ -18,14 +18,12 @@ export const sendWelcomeEmail = async (email) => {
   const mailOptions = {
     from: 'no-reply@youvence.com',
     to: email,
-    subject: 'Bienvenue sur notre Youvence !',
+    subject: 'Bienvenue sur Youvence !',
     html: `
-      <h1>Bienvenue sur notre Youvence !</h1>
+      <h1>Bienvenue sur Youvence !</h1>
       <a href="${BACKOFFICE_URL}">Voir le site</a>
     `,
   };
-
-  console.log(mailOptions);
 
   try {
     await transporter.sendMail(mailOptions);

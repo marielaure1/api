@@ -1,31 +1,28 @@
 import { PrismaClient } from '@prisma/client'
+import { DateTime } from "luxon";
 
 const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, image, body, slug, published, published_at, user_id } = req.body
+    const { title, image, body, published, published_at } = req.body
 
-    if(!title || !image || !body || !slug || !user_id ){
+    if(!title || !image || !body ){
 
-        let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
-        let imageError = (image && image == "") ??  "Veuillez choisir une image."
-        let bodyError = (body && body.trim() == "") ??  "Veuillez écrire votre article."
-        let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
-        let userIdError = (slug && slug == "") ??  "Veuillez choisir un utilisateur."
+        let titleError = !title || title.trim() == "" ?  "Veuillez saisir un titre." : ""
+        let imageError = (image && image == "") ?  "Veuillez choisir une image." : ""
+        let bodyError = (body && body.trim() == "") ?  "Veuillez écrire votre article." : ""
 
         res.status(422).json({
-            error: { titleError, imageError, bodyError, slugError, userIdError }
+            error: { titleError, imageError, bodyError }
         })
     }
 
     res.title = title
     res.image = image
     res.body = body
-    res.slug = slug
-    res.user_id = user_id
     res.published = published
-    res.published_at = published_at
+    // res.published_at = published_at
 
     next()
 }
@@ -33,14 +30,14 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allProduct = await prisma.posts.findMany()
+        const allPost = await prisma.post.findMany()
 
-        if(!allProduct){
+        if(!allPost){
             throw new Error("Error Posts")
         }
 
         res.json({
-            allProduct
+            allPost
         })
 
     } catch(error){
@@ -56,111 +53,167 @@ export const allData = async (req, res) => {
         })
     }
 }
+export const allDataPublished = async (req, res) => {
+
+    try{
+        const allPosts = await prisma.post.findMany({
+            where: {
+                published : true
+            }
+        })
+
+        if(!allPosts){
+            throw new Error("Error Posts")
+        }
+
+        res.json({
+            allPosts
+        })
+
+    } catch(e){
+        let error = "Une erreur c'est produite."
+        let code = 500
+
+        if(e == "Error Posts"){
+            error = "Il n'y a aucun articles."
+        }
+
+        console.log(e);
+        res.status(code).json({
+            error
+        })
+    }
+}
 
 export const createData = async (req, res) => {
-    const { title, image, body, published, published_at, user_id  } = res
-    let slug = res.slug
-
-    slug = await generateSlug(slug)
+    const { title, image, body, published, user } = res
+    // let published_at = res.published_at
 
     try{
 
-        const createProduct = await prisma.posts.create({
+        let slug = await generateSlug(title)
+
+        const createPost = await prisma.post.create({
             data: {
-                title, image, body, slug, published, published_at, user_id
+                title, image, body, slug, published, user_id : user.id
             },
         });
 
-        if(!createProduct){
+        if(!createPost){
             throw new Error("Error Create")
         }
 
-        res.status(200).json({
-            message: "L'article a été créé avec succès."
+        return res.status(200).json({
+            message: "L'article a été créé avec succès.",
+            createPost: createPost
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Create"){
-            message = "Une erreur c'est produite lors de la création de l'article."
+        if(e == "Error Create"){
+            error = "Une erreur c'est produite lors de la création de l'article."
         }
 
-        res.status(code).json({
-            message
+        console.log(e);
+
+        return res.status(code).json({
+            error
         })
     }
 }
 
 export const showData = async (req, res) => {
     const slug = req.params.slug
+    const id = req.params.id
 
     try{
-        const showProduct = await prisma.posts.findFirst({
-            where: {
-              slug: slug
-            },
-          })
 
-        if(!showProduct){
+        let showPost = ""
+        
+        if(slug){
+            showPost = await prisma.post.findFirst({
+                where: {
+                  slug: slug
+                },
+                include: {
+                    user: true
+                }
+            })
+        } else {
+            showPost = await prisma.post.findFirst({
+                where: {
+                  id: parseInt(id)
+                },
+                include: {
+                    user: true
+                }
+              })
+        }
+
+        if(!showPost){
             throw new Error("Error Posts")
         }
 
-        res.json({
-            showProduct
+        return res.json({
+            showPost
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Posts"){
-            message = "Il n'y a aucun articles."
+        if(e == "Error Posts"){
+            error = "Il n'y a aucun articles."
         }
 
-        res.status(code).json({
-            message
+        console.log(e);
+
+        return res.status(code).json({
+            error
         })
     }
 }
 
 export const updateData = async(req, res) => {
-    const { title, image, body, published, published_at, user_id } = res
-    let slug = res.slug
+    const { title, image, body, published } = res
     const id = req.params.id
 
-    slug = await generateSlug(slug)
-
     try{
-        const updateProduct = await prisma.posts.update({ 
+        const updatePost = await prisma.post.update({ 
             where: {
                 id: parseInt(id)
             },
             data: { 
-                title, image, body, slug, published, published_at, user_id
+                title, image, body, published
+            },
+            include: {
+                user: true
             }
         })
 
-        if(!updateProduct){
+        if(!updatePost){
             throw new Error("Error Update")
         }
 
-        res.json({
+        return res.json({
             message: "L'article a été modifié avec succès.",
-            updateProduct
+            updatePost
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Update"){
-            message = "Une erreur c'est produite lors de la modification de l'article."
+        if(e == "Error Update"){
+            error = "Une erreur c'est produite lors de la modification de l'article."
         }
 
-        res.status(code).json({
-            message
+        console.log(e);
+
+        return res.status(code).json({
+            error
         })
     }
 }
@@ -169,31 +222,31 @@ export const deleteData = async(req, res) => {
     const id = req.params.id
 
     try{
-        const deleteProduct = await prisma.posts.delete({ 
+        const deletePost = await prisma.post.delete({ 
             where: {
                 id: parseInt(id)
             }
         })
 
-        if(!deleteProduct){
+        if(!deletePost){
             throw new Error("Error Delete")
         }
 
         res.json({
             message: "L'article a été supprimé avec succès.",
-            deleteProduct
+            deletePost
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Delete"){
-            message = "Une erreur c'est produite lors de la suppression de l'article."
+        if(e == "Error Delete"){
+            error = "Une erreur c'est produite lors de la suppression de l'article."
         }
 
         res.status(code).json({
-            message
+            error
         })
     }
 }
@@ -204,7 +257,7 @@ export const searchData = async(req, res) => {
     console.log(q);
 
     try{
-        const searchPosts = await prisma.posts.findMany({
+        const searchPosts = await prisma.post.findMany({
             where: {
               OR: [
                 {
@@ -235,7 +288,7 @@ export const searchData = async(req, res) => {
         res.json({
             message: "Résultat de votre recherche",
             count: 3,
-            searchproduct: searchPosts
+            searchpost: searchPosts
         })
 
     } catch(error){
@@ -252,29 +305,43 @@ export const searchData = async(req, res) => {
     }
 }
 
-const generateSlug = async (slug) => {
-    let slugExist = await prisma.posts.findUnique({
-        where: {
-            slug: slug,
-        },
-    })
+const generateSlug = async (title) => {
+    try {
+      let slug = title
+        .toString()
+        .toLowerCase()
+        .replace(/\s+/g, '-') // Remplace les espaces par des tirets
+        .replace(/[^\w\-]+/g, '') // Supprime les caractères non alphanumériques et les tirets
+        .replace(/\-\-+/g, '-') // Remplace plusieurs tirets consécutifs par un seul tiret
+        .replace(/^-+/, '') // Supprime les tirets en début de chaîne
+        .replace(/-+$/, ''); // Supprime les tirets en fin de chaîne
 
-    let slugNb = 0
-    let slugGenerate = slug
-
-    while (slugExist){
-        slugGenerate = slug + "-" + slugNb 
-        slugNb++
-
-        slugExist = await prisma.posts.findFirst({
+      let slugExist = await prisma.post.findFirst({
             where: {
-                slug: slugGenerate,
+              slug: slug,
             },
-        })
+          });
+      let slugNb = 1;
+      let slugGenerate = slug;
 
+        while (slugExist) {
+          slugGenerate = `${slug}-${slugNb}`;
+          slugNb++;
+
+          slugExist = await prisma.post.findFirst({
+            where: {
+              slug: slugGenerate,
+            },
+          });
+        }
+      
+
+      slug = slugGenerate;
+
+      return slug;
+    } catch (error) {
+      console.log(error);
     }
+  };
 
-    slug = slugGenerate
-
-    return slug
-}
+  

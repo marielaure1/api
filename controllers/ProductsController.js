@@ -1,29 +1,33 @@
 import { PrismaClient } from '@prisma/client'
+import { parse } from 'dotenv'
 
 const prisma = new PrismaClient()
 
 export const request = async (req, res, next) => {
 
-    const { title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories } = req.body
+    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id, categories } = req.body
 
-    if(!title || !images || !price || !slug ){
+    if(!title || !images || !price ){
 
-        let titleError = (title && title.trim() == "") ??  "Veuillez saisir un titre."
-        let imagesError = (images && images == "") ??  "Veuillez choisir au moins une image."
-        let priceError = (price && price == "") ??  "Veuillez saisir un prix."
-        let slugError = (slug && slug.trim() == "") ??  "Veuillez saisir un slug."
-        let shortDescriptionError = (short_description && short_description.trim() == "") ??  "Veuillez saisir une description courte."
-        let descriptionError = (description && description.trim() == "") ??  "Veuillez saisir une description."
+        let titleError = (!title || title.trim() == "") ?  "Veuillez saisir un titre." : ""
+        let imagesError = (!images || images == "") ?  "Veuillez choisir au moins une image." : ""
+        let priceError = (!price || price == "") ?  "Veuillez saisir un prix." : ""
+        let stockError = (!stock || stock == "") ?  "Veuillez saisir un stock." : ""
+        let compositionError = (!composition || composition.trim() == "") ?  "Veuillez saisir une composition." : ""
+        let collection_idError = (!collection_id || collection_id.trim() == "") ?  "Veuillez saisir une collection." : ""
+        let plan_idError = (!plan_id || plan_id.trim() == "") ?  "Veuillez saisir une plan." : ""
+        let shortDescriptionError = (!short_description || short_description.trim() == "") ?  "Veuillez saisir une description courte." : ""
+        let descriptionError = (!description || description.trim() == "") ?  "Veuillez saisir une description." : ""
+        let categoriesError = (!categories || categories.trim() == "") ?  "Veuillez choisir au moins une categorie." : ""
 
-        res.status(422).json({
-            error: { titleError, imagesError, priceError, slugError, shortDescriptionError, descriptionError }
+        return res.status(422).json({
+            error: { titleError, imagesError, priceError, shortDescriptionError, descriptionError, stockError, compositionError, collection_idError, plan_idError, categoriesError }
         })
     }
 
     res.title = title
     res.images = images
     res.price = price
-    res.slug = slug
     res.short_description = short_description
     res.description = description
     res.composition = composition 
@@ -39,7 +43,13 @@ export const request = async (req, res, next) => {
 export const allData = async (req, res) => {
 
     try{
-        const allProducts = await prisma.products.findMany()
+        const allProducts = await prisma.products.findMany({
+            include:{
+                plan: true,
+                collection: true,
+                categories: true,
+            }
+        })
 
         if(!allProducts){
             throw new Error("Error Products")
@@ -66,16 +76,41 @@ export const allData = async (req, res) => {
 }
 
 export const createData = async (req, res) => {
-    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id, categories  } = res
-    let slug = res.slug
-
-    slug = await generateSlug(slug)
+    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id, categories, stripe_id, stripe_price_id } = res
 
     try{
 
+        let slug = await generateSlug(title)
+
+        const selectedCategories = await prisma.categories.findMany({
+        where: {
+            id: {
+            in: categories,
+            },
+        },
+        });
+
         const createProduct = await prisma.products.create({
             data: {
-                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories
+                title,
+                images,
+                price: parseInt(price),
+                composition,
+                short_description,
+                description,
+                published,
+                slug,
+                stock: parseInt(stock),
+                plan_id: parseInt(plan_id),
+                collection_id: parseInt(collection_id),
+                categories,
+                stripe_id,
+                stripe_price_id,
+                categories: {
+                    connect: selectedCategories.map((category) => ({
+                      id: category.id,
+                    })),
+                  },
             },
         });
 
@@ -104,13 +139,18 @@ export const createData = async (req, res) => {
 }
 
 export const showData = async (req, res) => {
-    const slug = req.params.slug
+    const id = req.params.id
 
     try{
         const showProduct = await prisma.products.findFirst({
             where: {
-              slug: slug
+              id: parseInt(id)
             },
+            include:{
+                plan: true,
+                collection: true,
+                categories: true,
+            }
           })
 
         if(!showProduct){
@@ -136,19 +176,24 @@ export const showData = async (req, res) => {
 }
 
 export const updateData = async(req, res) => {
-    const {title, images, price, short_description, description, plan, categories} = res
-    let slug = res.slug
+    const { title, images, price, composition, short_description, description, published, stock, plan_id, collection_id, categories} = res
     const id = req.params.id
 
-    slug = await generateSlug(slug)
+    
 
     try{
+
+        let slug = await generateSlug(title)
         const updateProduct = await prisma.products.update({ 
             where: {
                 id: parseInt(id)
             },
             data: { 
-                title, images, price, slug, composition, short_description, description, published, stock, plan_id, collection_id, categories
+                title, images, price: parseInt(price), composition, short_description, description, published, stock: parseInt(stock), plan_id:parseInt(plan_id), collection_id: parseInt(collection_id), categories
+            },
+            include:{
+                plan: true,
+                collection: true
             }
         })
 
@@ -263,28 +308,48 @@ export const searchData = async(req, res) => {
 }
 
 const generateSlug = async (slug) => {
-    let slugExist = await prisma.products.findFirst({
-        where: {
-            slug: slug,
-        },
-    })
 
-    let slugNb = 0
-    let slugGenerate = slug
+    try{
+        slug.toString()
+        .toLowerCase()
+        .replace(/\s+/g, '-') // Remplace les espaces par des tirets
+        .replace(/[^\w\-]+/g, '') // Supprime les caractères non alphanumériques et les tirets
+        .replace(/\-\-+/g, '-') // Remplace plusieurs tirets consécutifs par un seul tiret
+        .replace(/^-+/, '') // Supprime les tirets en début de chaîne
+        .replace(/-+$/, ''); // Supprime les tirets en fin de chaîne
 
-    while (slugExist){
-        slugGenerate = slug + "-" + slugNb 
-        slugNb++
-
-        slugExist = await prisma.products.findFirst({
+        console.log(slug);
+        let slugExist = await prisma.products.findFirst({
             where: {
-                slug: slugGenerate,
+                slug: slug,
             },
         })
 
+        let slugNb = 0
+        let slugGenerate = slug
+
+        if(!slugExist){
+            while (slugExist){
+                slugGenerate = slug + "-" + slugNb 
+                slugNb++
+        
+                slugExist = await prisma.products.findFirst({
+                    where: {
+                        slug: slugGenerate,
+                    },
+                })
+        
+                console.log(slugExist);
+        
+            }
+        }
+
+        slug = slugGenerate
+
+        console.log(slug);
+
+        return slug
+    } catch(error){
+        console.log(error);
     }
-
-    slug = slugGenerate
-
-    return slug
 }

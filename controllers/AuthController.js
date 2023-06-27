@@ -88,8 +88,6 @@ export const register = async (req, res) => {
             },
         })
 
-        console.log("test");
-
         const token = jwt.sign({ email: email }, JWT_KEY, { expiresIn: "2d" })
 
         if(!createUser){
@@ -125,26 +123,26 @@ export const register = async (req, res) => {
             token
         })
 
-    } catch(error){
-        let message = "Une erreur c'est produite."
+    } catch(e){
+        let error = "Une erreur c'est produite."
         let code = 500
 
-        if(error == "Error Create"){
-            message = "Une erreur c'est produite lors de la création de l'utilisateur."
+        if(e == "Error Create"){
+            error = "Une erreur c'est produite lors de la création de l'utilisateur."
         }
 
-        if(error == "Error Update"){
-            message = "Une erreur c'est produite lors de l'ajout du stripe_id de l'utilisateur."
+        if(e == "Error Update"){
+            error = "Une erreur c'est produite lors de l'ajout du stripe_id de l'utilisateur."
         }
 
-        if(error == "Error Send Email"){
-            message = "Une erreur c'est produite lors de l'envoie de l'email à l'utilisateur."
+        if(e == "Error Send Email"){
+            error = "Une erreur c'est produite lors de l'envoie de l'email à l'utilisateur."
         }
 
-        console.log(error);
+        console.log(e);
 
         return res.status(code).json({
-            message
+            error
         })
     }
 }
@@ -191,13 +189,13 @@ export const login = async (req, res) => {
             }
         });
         
-    } catch (error) {
-        console.log(error);
-        let message = "Une erreur s'est produite.";
+    } catch (e) {
+        console.log(e);
+        let error = "Une erreur s'est produite.";
         let code = 500;
 
-        return res.status(code).json({
-            message,
+        res.status(code).json({
+            error,
         });
     }
 };
@@ -252,13 +250,13 @@ export const loginAdmin = async (req, res) => {
             }
         });
 
-    } catch (error) {
-        console.log(error);
-        let message = "Une erreur s'est produite.";
+    } catch (e) {
+        console.log(e);
+        let error = "Une erreur s'est produite.";
         let code = 500;
 
         return res.status(code).json({
-            message,
+            error,
         });
     }
 };
@@ -270,11 +268,17 @@ export const me = async (req, res) => {
 
         const findUser = await prisma.users.findFirst({
             where: { 
-                email: token.emal
+                email: token.email
+            },
+            include:{
+                products_order: true,
+                subscriptions_order: true,
+                posts: true,
+                subscriptions: true,
+                favorites: true,
             }
         })
-
-        
+       
         if(!findUser){
             throw new Error("Error Me")
         }
@@ -298,6 +302,73 @@ export const me = async (req, res) => {
         })
     }
 }
+
+export const updateMe = async (req, res) => {
+    const { email, first_name, last_name, address, phone } = req.body;
+    let emailError, first_nameError, last_nameError;
+    let errors = false;
+  
+    if (!email || !first_name || !last_name) {
+      errors = true;
+  
+      emailError = !email || email.trim() === "" ? "Veuillez saisir un email." : null;
+      first_nameError = !first_name || first_name.trim() === "" ? "Veuillez saisir un prénom." : null;
+      last_nameError = !last_name || last_name.trim() === "" ? "Veuillez saisir un nom." : null;
+    }
+  
+    if(!emailValidator(email).validate){
+      errors = true
+      emailError = emailValidator(email).emailError
+  }
+  
+  
+    if (errors) {
+      return res.status(422).json({
+        error: { emailError, first_nameError, last_nameError }
+      });
+    }
+  
+    const id = req.params.id;
+  
+    try {
+      
+      const updateUser = await prisma.users.update({
+        where: {
+          id: parseInt(id)
+        },
+        data: {
+          email,
+          first_name,
+          last_name,
+          address,
+          phone,
+        }
+      });
+  
+      if (!updateUser) {
+        throw new Error("Error Update");
+      }
+  
+      return res.json({
+        message: "L'utilisateur a été modifié avec succès.",
+        updateMe: updateUser
+      });
+    } catch (e) {
+      let error = "Une erreur s'est produite.";
+      let code = 500;
+  
+      if (e === "Error Update") {
+        error = "Une erreur s'est produite lors de la modification de l'utilisateur.";
+      }
+
+      console.log(e);
+  
+      return res.status(code).json({
+        error
+      });
+    }
+  };
+  
 
 export const logout = async(req, res, next) => {
 

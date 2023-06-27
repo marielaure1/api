@@ -328,7 +328,7 @@ export const updatePassword = async (req, res) => {
 
     console.log(error);
 
-    return res.status(code).json({
+     res.status(code).json({
       message,
     });
   }

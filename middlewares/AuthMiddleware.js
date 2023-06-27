@@ -34,8 +34,11 @@ export const authentification = async(req, res, next) => {
         if(!user){
             throw new Error("Echec authentification")
         }
-
+// console.log(user);
         res.token = token
+        res.user = user
+
+        
 
         next()
 

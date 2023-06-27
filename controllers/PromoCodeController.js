@@ -4,9 +4,15 @@ const prisma = new PrismaClient();
 
 export const allData = async (req, res) => {
   try {
-    const promoCodes = await prisma.promo_Code.findMany();
-    res.json({ promoCodes });
+
+    const promoCodes = await prisma.Promo_Code.findMany();
+
+    return res.json({ 
+      promoCodes 
+    });
   } catch (error) {
+
+    console.log(error);
     res.status(500).json({ error: 'Une erreur s\'est produite lors de la récupération des codes promo.' });
   }
 };
@@ -15,12 +21,12 @@ export const showData = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const promoCode = await prisma.promo_Code.findUnique({ where: { id: parseInt(id) } });
+    const showPromoCode = await prisma.Promo_Code.findUnique({ where: { id: parseInt(id) },  include: { categories: true} });
 
-    if (!promoCode) {
+    if (!showPromoCode) {
       res.status(404).json({ error: 'Le code promo demandé est introuvable.' });
     } else {
-      res.json({ promoCode });
+      res.json({ showPromoCode });
     }
   } catch (error) {
     res.status(500).json({ error: 'Une erreur s\'est produite lors de la récupération du code promo.' });
@@ -31,10 +37,10 @@ export const createData = async (req, res) => {
   const { code, reduction, expiration, categories } = req.body;
 
   try {
-    const promoCode = await prisma.promo_Code.create({
+    const createPromoCode = await prisma.Promo_Code.create({
       data: {
         code,
-        reduction,
+        reduction: parseInt(reduction),
         expiration,
         categories: {
           connect: categories.map(categoryId => ({ id: parseInt(categoryId) })),
@@ -42,8 +48,12 @@ export const createData = async (req, res) => {
       },
     });
 
-    res.status(201).json({ promoCode });
+    return res.status(201).json({ 
+      message: "Code promo créé avec succès.",
+      createPromoCode 
+    });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: 'Une erreur s\'est produite lors de la création du code promo.' });
   }
 };
@@ -53,7 +63,7 @@ export const updateData = async (req, res) => {
   const { code, reduction, expiration, categories } = req.body;
 
   try {
-    const promoCode = await prisma.promo_Code.update({
+    const updatePromoCode = await prisma.Promo_Code.update({
       where: { id: parseInt(id) },
       data: {
         code,
@@ -65,7 +75,10 @@ export const updateData = async (req, res) => {
       },
     });
 
-    res.json({ promoCode });
+    return res.json({ 
+      message: "Le code promo a été modifié avec succès",
+      updatePromoCode 
+    });
   } catch (error) {
     res.status(500).json({ error: 'Une erreur s\'est produite lors de la mise à jour du code promo.' });
   }
@@ -75,7 +88,7 @@ export const deleteData = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await prisma.promo_Code.delete({ where: { id: parseInt(id) } });
+    await prisma.Promo_Code.delete({ where: { id: parseInt(id) } });
     res.json({ message: 'Le code promo a été supprimé avec succès.' });
   } catch (error) {
     res.status(500).json({ error: 'Une erreur s\'est produite lors de la suppression du code promo.' });
